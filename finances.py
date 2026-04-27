@@ -6,7 +6,7 @@ def load_data():
         with open("transacoes.json", "r") as arquivo:
             transacoes = json.load(arquivo)
     except:
-        return = []
+        return []
 
 # Salvar dados
 def save_data(transacoes):
