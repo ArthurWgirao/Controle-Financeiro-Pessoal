@@ -4,7 +4,7 @@ import json
 def load_data():
     try:
         with open("transacoes.json", "r") as arquivo:
-            transacoes = json.load(arquivo)
+            return json.load(arquivo)
     except:
         return []
 
