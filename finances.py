@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 # Carregar dados
 def load_data():
@@ -19,13 +20,16 @@ def add_receita(transacoes):
     valor = float(input("Digite o valor da receita: "))
     categoria = input("Digite a categoria: ")
     descricao = input("Digite uma descrição: ")
+    date = datetime.now().strftime("%d/%m/%Y")
 
     transacoes.append({
         "tipo": "receita",
         "valor": valor,
         "categoria": categoria,
-        "descrição": descricao
+        "descrição": descricao,
+        "data": date
     })
+
     save_data(transacoes)
     print("Receita adicionada!")
 
@@ -33,13 +37,17 @@ def add_despesa(transacoes):
     valor = float(input("Digite o valor da despesa: "))
     categoria = input("Digite a categoria: ")
     descricao = input("Digite uma descrição: ")
+    date = datetime.now().strftime("%d/%m/%Y")
 
     transacoes.append({
+
         "tipo": "despesa",
         "valor": valor,
         "categoria": categoria,
-        "descrição": descricao
+        "descrição": descricao,
+        "data": date
     })
+
     save_data(transacoes)
     print("Despesa adicionada!")
 
@@ -47,8 +55,16 @@ def listar_transacoes(transacoes):
     if len(transacoes) == 0:
         print("Nenhuma transação cadastrada.")
     else:
-        for i, t in enumerate(transacoes):
-            print(f"{i} - {t['tipo']} | R$ {t['valor']} | {t['categoria']} | {t['descricao']}")
+         print("\n===== TRANSAÇÕES =====")
+         for i, t in enumerate(transacoes):
+                print(
+                    f"{i} - [{t['tipo'].upper()}] "
+                    f"R$ {t['valor']:.2f} | "
+                    f"{t['categoria']} | "
+                    f"{t['descrição']} | "
+                    f"{t.get('data', '')}"
+                )
+         print()
 
 def ver_saldo(transacoes):
     receitas = 0
@@ -61,6 +77,7 @@ def ver_saldo(transacoes):
             despesas += t["valor"]
     saldo = receitas - despesas
 
+    print("\n==== RESUMO ====")
     print(f"Total de receitas: R${receitas}")
     print(f"Total de despesas: R${despesas}")
     print(f"Saldo atual: R${saldo}")
@@ -69,6 +86,7 @@ def remover_transacao(transacoes):
     if len(transacoes) == 0:
         print("Nenhuma transação para remover.")
         return
+    
     listar_transacoes(transacoes)
 
     indice = int(input("Digite o índice da transação que deseja remover: "))
@@ -80,6 +98,42 @@ def remover_transacao(transacoes):
     else:
         print("Índice inválido!")
 
+
+def  editar_transacao(transacoes):
+    if len(transacoes) == 0:
+        print("Nenhuma transação para editar.")
+        return
+    
+    listar_transacoes
+
+    indice = int(input("Digite o índice da transação que deseja editar: "))
+
+    if 0 <= indice < len(transacoes):
+        t = transacoes[indice]
+
+        print("Pressione enter para não alterar.")
+
+        novo_valor = input(f"Novo valor (atual: {t['valor']}): ")
+        nova_categoria = input(f"Nova categoria (atual: {t['categoria']}: )")
+        nova_descricao = input(f"Nova descrição (atual: {t['descricao']}): ")
+
+        if novo_valor != "":
+            t['valor'] = float(novo_valor)
+        
+        if nova_categoria != "":
+            t['categoria'] = float(nova_categoria)
+        
+        if nova_descricao != "":
+            t['descrição'] = float(nova_descricao)
+
+        save_data(transacoes)
+        print("Transação atualizada!")
+
+    else:
+        print("Índice inválido")
+
+        
+
 # Menu
 
 def menu():
@@ -90,7 +144,8 @@ CONTROLE FINANCEIRO
 3 - Listar Transações
 4 - Ver Saldo Total
 5 - Remover Transação
-6 - Sair
+6 - Editar Transação
+7 - Sair
 """)
     
 # Função Principal
@@ -118,6 +173,9 @@ def main():
             remover_transacao(transacoes)
 
         elif opcao == "6":
+            editar_transacao(transacoes)
+
+        elif opcao == "7":
             print("Saindo...")
             break
         
