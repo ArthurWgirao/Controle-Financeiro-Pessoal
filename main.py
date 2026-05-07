@@ -11,6 +11,8 @@ from transacoes import (
     total_por_categoria
 )
 
+from graficos import grafico_despesas_categoria
+
 
 def menu():
     print("""
@@ -24,14 +26,17 @@ def menu():
 6 - Editar Transação
 7 - Filtrar por Categoria
 8 - Total por Categoria
-9 - Sair
+9 - Gráfico de Despesas por Categoria
+10 - Sair
 """)
 
 
 def main():
+
     transacoes = load_data()
 
     while True:
+
         menu()
 
         opcao = input("Escolha uma opção: ")
@@ -61,6 +66,9 @@ def main():
             total_por_categoria(transacoes)
 
         elif opcao == "9":
+            grafico_despesas_categoria(transacoes)
+
+        elif opcao == "10":
             print("Saindo...")
             break
 
