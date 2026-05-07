@@ -35,42 +35,30 @@ def main():
 
     transacoes = load_data()
 
+    opcoes = {
+        "1": add_receita,
+        "2": add_despesa,
+        "3": listar_transacoes,
+        "4": ver_saldo,
+        "5": remover_transacao,
+        "6": editar_transacao,
+        "7": filtrar_por_categoria,
+        "8": total_por_categoria,
+        "9": grafico_despesas_categoria
+    }
+
     while True:
 
         menu()
 
         opcao = input("Escolha uma opção: ")
 
-        if opcao == "1":
-            add_receita(transacoes)
-
-        elif opcao == "2":
-            add_despesa(transacoes)
-
-        elif opcao == "3":
-            listar_transacoes(transacoes)
-
-        elif opcao == "4":
-            ver_saldo(transacoes)
-
-        elif opcao == "5":
-            remover_transacao(transacoes)
-
-        elif opcao == "6":
-            editar_transacao(transacoes)
-
-        elif opcao == "7":
-            filtrar_por_categoria(transacoes)
-
-        elif opcao == "8":
-            total_por_categoria(transacoes)
-
-        elif opcao == "9":
-            grafico_despesas_categoria(transacoes)
-
-        elif opcao == "10":
+        if opcao == "10":
             print("Saindo...")
             break
+
+        elif opcao in opcoes:
+            opcoes[opcao](transacoes)
 
         else:
             print("Opção inválida!")
