@@ -1,4 +1,5 @@
 from data import load_data
+from database import criar_tabela
 
 from transacoes import (
     add_receita,
@@ -32,6 +33,8 @@ def menu():
 
 
 def main():
+
+    criar_tabela()
 
     transacoes = load_data()
 
