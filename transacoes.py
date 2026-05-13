@@ -63,7 +63,7 @@ def listar_transacoes(transacoes):
 
     for i, t in enumerate(transacoes):
         print(
-            f"{i} - [{t['tipo'].upper()}] "
+            f"{i + 1} - [{t['tipo'].upper()}] "
             f"R$ {t['valor']:.2f} | "
             f"{t['categoria']} | "
             f"{t['descrição']} | "
