@@ -1,5 +1,6 @@
 from datetime import datetime
 from data import save_data
+from database import conectar
 from categorias import categorias
 
 
@@ -19,20 +20,28 @@ def escolher_categoria():
 
 
 def add_receita(transacoes):
+
     valor = float(input("Digite o valor da receita: "))
     categoria = escolher_categoria()
     descricao = input("Digite uma descrição: ")
     data = datetime.now().strftime("%d/%m/%Y")
 
-    transacoes.append({
-        "tipo": "receita",
-        "valor": valor,
-        "categoria": categoria,
-        "descrição": descricao,
-        "data": data
-    })
+    conexao = conectar()
+    cursor = conexao.cursor()
 
-    save_data(transacoes)
+    cursor.execute(
+        """
+        INSERT INTO transacoes
+        (tipo, valor, categoria, descricao, data)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        ("receita", valor, categoria, descricao, data)
+    )
+
+    conexao.commit()
+    conexao.close()
+
+    
     print("Receita adicionada!")
 
 
