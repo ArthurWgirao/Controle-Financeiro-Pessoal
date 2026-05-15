@@ -1,5 +1,4 @@
 from datetime import datetime
-from data import save_data
 from database import conectar
 from categorias import categorias
 
