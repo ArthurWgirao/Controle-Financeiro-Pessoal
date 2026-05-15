@@ -94,9 +94,10 @@ def listar_transacoes():
 
     print("\n===== TRANSAÇÕES =====")
 
-    for i, t in enumerate(transacoes):
+    for indice, t in enumerate(transacoes):
         print(
-            f"{t[0]} - [{t[1].upper()}] "
+            f"{indice} - "
+            f"[{t[1].upper()}] | "
             f"R$ {t[2]:.2f} | "
             f"{t[3]} | "
             f"{t[4]} | "
@@ -104,7 +105,7 @@ def listar_transacoes():
         )
 
 # =================
-# VER
+# VER SALDO
 # =================
 
 
@@ -142,22 +143,59 @@ def ver_saldo():
 
 def remover_transacao():
 
-    listar_transacoes()
-
-    id_transacao = int(input("Digite o ID da transação: "))
-
     conexao = conectar()
     cursor = conexao.cursor()
 
-    cursor.execute(
-        "DELETE FROM transacoes WHERE id = ?",
-        (id_transacao,)
+    cursor.execute("SELECT * FROM transacoes")
+
+    transacoes = cursor.fetchall()
+
+    if len(transacoes) == 0:
+        print("Nenhuma transação cadastrada.")
+        conexao.close()
+        return
+
+    print("\n===== TRANSAÇÕES =====")
+
+    for indice, t in enumerate(transacoes):
+
+        print(
+            f"{indice} - "
+            f"[{t[1].upper()}] | "
+            f"R$ {t[2]:.2f} | "
+            f"{t[3]} | "
+            f"{t[4]} | "
+            f"{t[5]}"
+        )
+
+    indice_visual = int(
+        input("\nDigite o índice da transação que deseja remover: ")
     )
 
-    conexao.commit()
+    # Verifica se índice existe
+    if 0 <= indice_visual < len(transacoes):
+
+        # Pega transação correspondente
+        transacao = transacoes[indice_visual]
+
+        # ID real do banco
+        id_real = transacao[0]
+
+        # Remove do banco
+        cursor.execute(
+            "DELETE FROM transacoes WHERE id = ?",
+            (id_real,)
+        )
+
+        conexao.commit()
+
+        print("Transação removida!")
+
+    else:
+        print("Índice inválido!")
+
     conexao.close()
 
-    print("Transação removida!")
 
 
 # =================
@@ -167,52 +205,92 @@ def remover_transacao():
 
 def editar_transacao():
 
-    listar_transacoes()
-
-    id_transacao = int(input("Digite o ID da transação: "))
-
     conexao = conectar()
     cursor = conexao.cursor()
 
-    cursor.execute(
-        "SELECT * FROM transacoes WHERE id = ?",
-        (id_transacao,)
-    )
+    cursor.execute("SELECT * FROM transacoes")
 
-    t = cursor.fetchone()
+    transacoes = cursor.fetchall()
 
-    if t is None:
-        print("Transação não encontrada.")
+    if len(transacoes) == 0:
+        print("Nenhuma transação cadastrada.")
         conexao.close()
         return
-    
-    print("Pressione ENTER para não alterar.")
 
-    novo_valor = input(f"Novo valor (atual: {t[2]}): ").strip()
-    nova_descricao = input(f"Nova descrição (atual: {t[4]}): ").strip()
+    print("\n===== TRANSAÇÕES =====")
 
-    valor = t[2]
-    descricao = t[4]
+    for indice, t in enumerate(transacoes):
 
-    if novo_valor != "":
-        valor = float(novo_valor)
+        print(
+            f"{indice} - "
+            f"[{t[1].upper()}] | "
+            f"R$ {t[2]:.2f} | "
+            f"{t[3]} | "
+            f"{t[4]} | "
+            f"{t[5]}"
+        )
 
-    if nova_descricao != "":
-        descricao = nova_descricao
-
-    cursor.execute(
-        """
-        UPDATE transacoes
-        SET valor = ?, descricao = ?
-        WHERE id = ?
-        """,
-        (valor, descricao, id_transacao)
+    indice_visual = int(
+        input("\nDigite o índice da transação que deseja editar: ")
     )
 
-    conexao.commit()
+    if 0 <= indice_visual < len(transacoes):
+
+        transacao = transacoes[indice_visual]
+
+        id_real = transacao[0]
+
+        print("\nPressione ENTER para não alterar.\n")
+
+        novo_valor = input(
+            f"Novo valor (atual: {transacao[2]}): "
+        ).strip()
+
+        nova_descricao = input(
+            f"Nova descrição (atual: {transacao[4]}): "
+        ).strip()
+
+        # Valores atuais
+        valor = transacao[2]
+        descricao = transacao[4]
+        categoria = transacao[3]
+
+        # Atualiza valor
+        if novo_valor != "":
+            valor = float(novo_valor)
+
+        # Atualiza descrição
+        if nova_descricao != "":
+            descricao = nova_descricao
+
+        # Atualiza categoria
+        alterar_categoria = input(
+            "Deseja alterar a categoria? (s/n): "
+        ).lower()
+
+        if alterar_categoria == "s":
+            categoria = escolher_categoria()
+
+        cursor.execute(
+            """
+            UPDATE transacoes
+            SET valor = ?,
+                categoria = ?,
+                descricao = ?
+            WHERE id = ?
+            """,
+            (valor, categoria, descricao, id_real)
+        )
+
+        conexao.commit()
+
+        print("Transação atualizada!")
+
+    else:
+        print("Índice inválido!")
+
     conexao.close()
 
-    print("Transação atualizada!")
 
 # ==================
 # FILTRAR TRANSAÇÕES
