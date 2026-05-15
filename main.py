@@ -1,4 +1,3 @@
-from data import load_data
 from database import criar_tabela
 
 from transacoes import (
@@ -15,7 +14,9 @@ from transacoes import (
 from graficos import grafico_despesas_categoria
 
 
+
 def menu():
+
     print("""
 ===== CONTROLE FINANCEIRO =====
 
@@ -32,11 +33,10 @@ def menu():
 """)
 
 
+
 def main():
 
     criar_tabela()
-
-    transacoes = load_data()
 
     opcoes = {
         "1": add_receita,
@@ -61,7 +61,7 @@ def main():
             break
 
         elif opcao in opcoes:
-            opcoes[opcao](transacoes)
+            opcoes[opcao]()
 
         else:
             print("Opção inválida!")

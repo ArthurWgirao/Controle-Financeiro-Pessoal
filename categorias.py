@@ -1,9 +1,10 @@
 categorias = [
-    "comida",
-    "transporte",
-    "lazer",
-    "saude",
-    "educacao",
-    "salario",
-    "investimentos"
+    "Comida",
+    "Transporte",
+    "Lazer",
+    "Saude",
+    "Educação",
+    "Salário",
+    "Investimentos",
+    "Outro"
 ]

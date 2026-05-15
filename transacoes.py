@@ -3,6 +3,9 @@ from data import save_data
 from database import conectar
 from categorias import categorias
 
+# ==================
+# ESCOLHER CATEGORIA
+# ==================
 
 def escolher_categoria():
     print("\n===== CATEGORIAS =====")
@@ -18,8 +21,11 @@ def escolher_categoria():
     print("Categoria inválida!")
     return escolher_categoria()
 
+# ===================
+# RECEITAS E DESPESAS
+# ===================
 
-def add_receita(transacoes):
+def add_receita():
 
     valor = float(input("Digite o valor da receita: "))
     categoria = escolher_categoria()
@@ -45,25 +51,44 @@ def add_receita(transacoes):
     print("Receita adicionada!")
 
 
-def add_despesa(transacoes):
+def add_despesa():
     valor = float(input("Digite o valor da despesa: "))
     categoria = escolher_categoria()
     descricao = input("Digite uma descrição: ")
     data = datetime.now().strftime("%d/%m/%Y")
 
-    transacoes.append({
-        "tipo": "despesa",
-        "valor": valor,
-        "categoria": categoria,
-        "descrição": descricao,
-        "data": data
-    })
+    conexao = conectar()
+    cursor = conexao.cursor()
 
-    save_data(transacoes)
+    cursor.execute(
+        """
+        INSERT INTO transacoes
+        (tipo, valor, categoria, descricao, data)
+        VALUES(?, ?, ?, ?, ?)    
+        """,
+        ("despesa", valor, categoria, descricao, data)
+    )
+
+    conexao.commit()
+    conexao.close()
+
     print("Despesa adicionada!")
 
+# =================
+# LISTAR TRANSAÇÕES
+# =================
 
-def listar_transacoes(transacoes):
+def listar_transacoes():
+    
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("SELECT * FROM transacoes")
+
+    transacoes = cursor.fetchall()
+
+    conexao.close()
+
     if len(transacoes) == 0:
         print("Nenhuma transação cadastrada.")
         return
@@ -72,25 +97,36 @@ def listar_transacoes(transacoes):
 
     for i, t in enumerate(transacoes):
         print(
-            f"{i + 1} - [{t['tipo'].upper()}] "
-            f"R$ {t['valor']:.2f} | "
-            f"{t['categoria']} | "
-            f"{t['descrição']} | "
-            f"{t['data']}"
+            f"{t[0]} - [{t[1].upper()}] "
+            f"R$ {t[2]:.2f} | "
+            f"{t[3]} | "
+            f"{t[4]} | "
+            f"{t[5]}"
         )
 
-    print()
+# =================
+# VER
+# =================
 
 
-def ver_saldo(transacoes):
+def ver_saldo():
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("SELECT tipo, valor FROM transacoes")
+
+    transacoes = cursor.fetchall()
+
+    conexao.close()
+
     receitas = 0
     despesas = 0
 
     for t in transacoes:
-        if t["tipo"] == "receita":
-            receitas += t["valor"]
+        if t[0] == "receita":
+            receitas += t[1]
         else:
-            despesas += t["valor"]
+            despesas += t[1]
 
     saldo = receitas - despesas
 
@@ -100,91 +136,142 @@ def ver_saldo(transacoes):
     print(f"Saldo:    R$ {saldo:.2f}")
 
 
-def remover_transacao(transacoes):
-    if len(transacoes) == 0:
-        print("Nenhuma transação para remover.")
+# ===================
+# REMVOVER TRANSAÇÕES
+# ===================
+
+
+def remover_transacao():
+
+    listar_transacoes()
+
+    id_transacao = int(input("Digite o ID da transação: "))
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute(
+        "DELETE FROM transacoes WHERE id = ?",
+        (id_transacao,)
+    )
+
+    conexao.commit()
+    conexao.close()
+
+    print("Transação removida!")
+
+
+# =================
+# EDITAR TRANSAÇÕES
+# =================
+
+
+def editar_transacao():
+
+    listar_transacoes()
+
+    id_transacao = int(input("Digite o ID da transação: "))
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute(
+        "SELECT * FROM transacoes WHERE id = ?",
+        (id_transacao,)
+    )
+
+    t = cursor.fetchone()
+
+    if t is None:
+        print("Transação não encontrada.")
+        conexao.close()
         return
+    
+    print("Pressione ENTER para não alterar.")
 
-    listar_transacoes(transacoes)
+    novo_valor = input(f"Novo valor (atual: {t[2]}): ").strip()
+    nova_descricao = input(f"Nova descrição (atual: {t[4]}): ").strip()
 
-    indice = int(input("Digite o índice da transação: "))
+    valor = t[2]
+    descricao = t[4]
 
-    if 0 <= indice < len(transacoes):
-        transacoes.pop(indice)
-        save_data(transacoes)
-        print("Transação removida!")
-    else:
-        print("Índice inválido!")
+    if novo_valor != "":
+        valor = float(novo_valor)
 
+    if nova_descricao != "":
+        descricao = nova_descricao
 
-def editar_transacao(transacoes):
-    if len(transacoes) == 0:
-        print("Nenhuma transação para editar.")
-        return
+    cursor.execute(
+        """
+        UPDATE transacoes
+        SET valor = ?, descricao = ?
+        WHERE id = ?
+        """,
+        (valor, descricao, id_transacao)
+    )
 
-    listar_transacoes(transacoes)
+    conexao.commit()
+    conexao.close()
 
-    indice = int(input("Digite o índice da transação: "))
+    print("Transação atualizada!")
 
-    if 0 <= indice < len(transacoes):
-        t = transacoes[indice]
-
-        print("Pressione ENTER para não alterar.")
-
-        novo_valor = input(f"Novo valor (atual: {t['valor']}): ").strip()
-        nova_descricao = input(f"Nova descrição (atual: {t['descrição']}): ").strip()
-
-        if novo_valor != "":
-            t["valor"] = float(novo_valor)
-
-        if nova_descricao != "":
-            t["descrição"] = nova_descricao
-
-        alterar_categoria = input("Deseja alterar categoria? (s/n): ").lower()
-
-        if alterar_categoria == "s":
-            t["categoria"] = escolher_categoria()
-
-        save_data(transacoes)
-        print("Transação atualizada!")
-
-    else:
-        print("Índice inválido!")
+# ==================
+# FILTRAR TRANSAÇÕES
+# ==================
 
 
-def filtrar_por_categoria(transacoes):
+def filtrar_por_categoria():
+
     categoria = escolher_categoria()
 
-    filtradas = [t for t in transacoes if t["categoria"] == categoria]
+    conexao = conectar()
+    cursor = conexao.cursor()
 
-    if len(filtradas) == 0:
+    cursor.execute(
+        "SELECT * FROM transacoes WHERE categoria = ?",
+        (categoria,)
+    )
+
+    transacoes = cursor.fetchall()
+
+    conexao.close()
+
+    if len(transacoes) == 0:
         print("Nenhuma transação encontrada.")
         return
-
     print(f"\n===== {categoria.upper()} =====")
 
-    for t in filtradas:
+    for t in transacoes:
         print(
-            f"[{t['tipo'].upper()}] "
-            f"R$ {t['valor']:.2f} | "
-            f"{t['descrição']} | "
-            f"{t['data']}"
+            f"[{t[1].upper()}] "
+            f"R$ {t[2]: 2f} | "
+            f"{t[4]} | "
+            f"{t[5]} "
         )
 
 
-def total_por_categoria(transacoes):
-    totais = {}
+# ====================
+# TOTAL POR CATEGORIA
+# ====================
 
-    for t in transacoes:
-        categoria = t["categoria"]
 
-        if categoria not in totais:
-            totais[categoria] = 0
+def total_por_categoria():
 
-        if t["tipo"] == "receita":
-            totais[categoria] += t["valor"]
-        else:
-            totais[categoria] -= t["valor"]
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute(
+        """
+        SELECT categoria, SUM(valor)
+        FROM transacoes
+        WHERE tipo = 'despesa'
+        GROUP BY categoria
+        """
+    )
+
+    totais = cursor.fetchall()
+
+    conexao.close()
 
     print("\n===== TOTAL POR CATEGORIA =====")
 
