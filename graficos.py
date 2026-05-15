@@ -1,30 +1,34 @@
 import matplotlib.pyplot as plt
 
+from database import conectar
 
-def grafico_despesas_categoria(transacoes):
 
-    totais = {}
 
-    # Percorre transações
-    for t in transacoes:
+def grafico_despesas_categoria():
 
-        # Apenas despesas
-        if t["tipo"] == "despesa":
+    conexao = conectar()
+    cursor = conexao.cursor()
 
-            categoria = t["categoria"]
-            valor = t["valor"]
+    cursor.execute(
+        """
+        SELECT categoria, SUM(valor)
+        FROM transacoes
+        WHERE tipo = 'despesa'
+        GROUP BY categoria
+        """
+    )
 
-            # Soma valores por categoria
-            if categoria in totais:
-                totais[categoria] += valor
-            else:
-                totais[categoria] = valor
+    dados = cursor.fetchall()
 
-    # Dados do gráfico
-    categorias = list(totais.keys())
-    valores = list(totais.values())
+    conexao.close()
 
-    # Criação do gráfico
+    categorias = []
+    valores = []
+
+    for categoria, total in dados:
+        categorias.append(categoria)
+        valores.append(total)
+
     plt.bar(categorias, valores)
 
     plt.title("Despesas por Categoria")

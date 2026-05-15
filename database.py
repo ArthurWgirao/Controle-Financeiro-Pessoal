@@ -17,7 +17,7 @@ def criar_tabela():
         tipo TEXT,
         valor REAL,
         categoria TEXT,
-        descricao TEXT,
+        descrição TEXT,
         data TEXT
 
     )
