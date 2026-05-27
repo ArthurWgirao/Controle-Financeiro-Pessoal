@@ -1,6 +1,13 @@
 from datetime import datetime
+
 from database import conectar
 from categorias import categorias
+
+from utils import (
+    ler_float,
+    ler_int
+)
+
 
 # ==================
 # ESCOLHER CATEGORIA
@@ -12,7 +19,7 @@ def escolher_categoria():
     for i, categoria in enumerate(categorias):
         print(f"{i + 1} - {categoria}")
 
-    opcao = int(input("Escolha uma categoria: "))
+    opcao = ler_int("Escolha uma categoria: ")
 
     if 1 <= opcao <= len(categorias):
         return categorias[opcao - 1]
@@ -20,15 +27,16 @@ def escolher_categoria():
     print("Categoria inválida!")
     return escolher_categoria()
 
+
 # ===================
 # RECEITAS E DESPESAS
 # ===================
 
 def add_receita():
 
-    valor = float(input("Digite o valor da receita: "))
+    valor = ler_float("Digite o valor da receita: ")
     categoria = escolher_categoria()
-    descricao = input("Digite uma descrição: ")
+    descricao = input("Digite uma descrição: ").strip()
     data = datetime.now().strftime("%d/%m/%Y")
 
     conexao = conectar()
@@ -51,9 +59,9 @@ def add_receita():
 
 
 def add_despesa():
-    valor = float(input("Digite o valor da despesa: "))
+    valor = ler_float("Digite o valor da despesa: ")
     categoria = escolher_categoria()
-    descricao = input("Digite uma descrição: ")
+    descricao = input("Digite uma descrição: ").strip()
     data = datetime.now().strftime("%d/%m/%Y")
 
     conexao = conectar()
@@ -113,7 +121,10 @@ def ver_saldo():
     conexao = conectar()
     cursor = conexao.cursor()
 
-    cursor.execute("SELECT tipo, valor FROM transacoes")
+    cursor.execute("""
+    SELECT tipo, valor 
+    FROM transacoes
+    """)
 
     transacoes = cursor.fetchall()
 
@@ -154,23 +165,11 @@ def remover_transacao():
         print("Nenhuma transação cadastrada.")
         conexao.close()
         return
+    
+    listar_transacoes()
 
-    print("\n===== TRANSAÇÕES =====")
-
-    for indice, t in enumerate(transacoes):
-
-        print(
-            f"{indice} - "
-            f"[{t[1].upper()}] | "
-            f"R$ {t[2]:.2f} | "
-            f"{t[3]} | "
-            f"{t[4]} | "
-            f"{t[5]}"
-        )
-
-    indice_visual = int(
-        input("\nDigite o índice da transação que deseja remover: ")
-    )
+    indice_visual = ler_int("\nDigite o índice da transação que deseja remover: ")
+    
 
     # Verifica se índice existe
     if 0 <= indice_visual < len(transacoes):
@@ -216,23 +215,12 @@ def editar_transacao():
         print("Nenhuma transação cadastrada.")
         conexao.close()
         return
+    
+    listar_transacoes()
 
-    print("\n===== TRANSAÇÕES =====")
 
-    for indice, t in enumerate(transacoes):
+    indice_visual = ler_int("\nDigite o índice da transação que deseja editar: ")
 
-        print(
-            f"{indice} - "
-            f"[{t[1].upper()}] | "
-            f"R$ {t[2]:.2f} | "
-            f"{t[3]} | "
-            f"{t[4]} | "
-            f"{t[5]}"
-        )
-
-    indice_visual = int(
-        input("\nDigite o índice da transação que deseja editar: ")
-    )
 
     if 0 <= indice_visual < len(transacoes):
 
@@ -354,3 +342,77 @@ def total_por_categoria():
 
     for categoria, total in totais.items():
         print(f"{categoria}: R$ {total:.2f}")
+
+
+# =================
+# RELATÓRIO MENSAL
+# =================
+
+def relatorio_mensal():
+    mes = input("Digite o mês e ano (MM/AAAA): ").strip()
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute(
+        """
+        SELECT tipo, valor, categoria
+        FROM transacoes
+        WHERE data LIKE?
+        """,
+        (f"%/{mes}",)
+    )
+
+    transacoes = cursor.fetchall()
+
+    conexao.close()
+
+    if len(transacoes) == 0:
+        print("Nenhuma transação encontrada.")
+        return
+    
+    receitas = 0
+    despesas = 0
+
+    categorias_gastos = {}
+
+    for t in transacoes:
+        tipo = t[0]
+        valor = t[1]
+        categoria = t[2]
+
+        if tipo == "receita":
+            receitas == valor
+
+        else:
+            despesas == valor
+            if categoria in categorias_gastos:
+                categorias_gastos[categoria] += valor
+
+            else:
+                categorias_gastos[categoria] = valor
+    saldo = receitas - despesas
+
+    maior_categoria = max(
+        categorias_gastos,
+        key=categorias_gastos.get
+    )
+
+    print("\n===== RELATÓRIO MENSAL =====")
+
+    print(f"Mês: {mes}")
+
+    print(f"\nReceitas: R$ {receitas:.2f}")
+    print(f"Despesas: R$ {despesas:.2f}")
+    print(f"Saldo: R$ {saldo:.2f}")
+
+    print(
+        f"\nMaior categoria:"
+        f" {maior_categoria}"
+    )
+
+    print(
+        f"Total gasto:"
+        f" R$ "
+        f"{categorias_gastos[maior_categoria]:.2f}"
+    )

@@ -23,5 +23,14 @@ def criar_tabela():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS metas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        categoria TEXT,
+        limite REAL
+    
+    )
+    """)
+
     conexao.commit()
     conexao.close()
