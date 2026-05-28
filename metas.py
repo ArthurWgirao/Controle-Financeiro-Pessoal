@@ -59,7 +59,7 @@ def verificar_metas():
             (categoria,)
         )
 
-        total = cursor.fetchall()[0]
+        total = cursor.fetchone()[0]
 
         if total is None:
             total = 0
