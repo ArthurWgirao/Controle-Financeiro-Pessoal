@@ -340,7 +340,7 @@ def total_por_categoria():
 
     print("\n===== TOTAL POR CATEGORIA =====")
 
-    for categoria, total in totais.items():
+    for categoria, total in totais:
         print(f"{categoria}: R$ {total:.2f}")
 
 
@@ -349,7 +349,10 @@ def total_por_categoria():
 # =================
 
 def relatorio_mensal():
-    mes = input("Digite o mês e ano (MM/AAAA): ").strip()
+
+    mes = input(
+        "Digite o mês e ano (MM/AAAA): "
+    ).strip()
 
     conexao = conectar()
     cursor = conexao.cursor()
@@ -357,8 +360,10 @@ def relatorio_mensal():
     cursor.execute(
         """
         SELECT tipo, valor, categoria
+
         FROM transacoes
-        WHERE data LIKE?
+
+        WHERE data LIKE ?
         """,
         (f"%/{mes}",)
     )
@@ -368,35 +373,40 @@ def relatorio_mensal():
     conexao.close()
 
     if len(transacoes) == 0:
+
         print("Nenhuma transação encontrada.")
         return
-    
+
     receitas = 0
     despesas = 0
 
     categorias_gastos = {}
 
     for t in transacoes:
+
         tipo = t[0]
         valor = t[1]
         categoria = t[2]
 
+        # RECEITAS
         if tipo == "receita":
-            receitas == valor
 
+            receitas += valor
+
+        # DESPESAS
         else:
-            despesas == valor
+
+            despesas += valor
+
             if categoria in categorias_gastos:
+
                 categorias_gastos[categoria] += valor
 
             else:
-                categorias_gastos[categoria] = valor
-    saldo = receitas - despesas
 
-    maior_categoria = max(
-        categorias_gastos,
-        key=categorias_gastos.get
-    )
+                categorias_gastos[categoria] = valor
+
+    saldo = receitas - despesas
 
     print("\n===== RELATÓRIO MENSAL =====")
 
@@ -406,13 +416,33 @@ def relatorio_mensal():
     print(f"Despesas: R$ {despesas:.2f}")
     print(f"Saldo: R$ {saldo:.2f}")
 
-    print(
-        f"\nMaior categoria:"
-        f" {maior_categoria}"
-    )
+# =========================
+# DESPESAS POR CATEGORIA
+# =========================
 
-    print(
-        f"Total gasto:"
-        f" R$ "
-        f"{categorias_gastos[maior_categoria]:.2f}"
-    )
+    if len(categorias_gastos) > 0:
+
+        print("\n===== DESPESAS POR CATEGORIA =====")
+
+        for categoria, total in categorias_gastos.items():
+
+            print(
+                f"{categoria}: "
+                f"R$ {total:.2f}"
+            )
+
+        maior_categoria = max(
+            categorias_gastos,
+            key=categorias_gastos.get
+        )
+
+        print(
+            f"\nMaior categoria: "
+            f"{maior_categoria}"
+        )
+
+        print(
+            f"Total gasto: "
+            f"R$ "
+            f"{categorias_gastos[maior_categoria]:.2f}"
+            )
