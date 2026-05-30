@@ -6,6 +6,11 @@ def ler_float(mensagem):
 
         try:
             valor = float(entrada)
+            
+            if valor <= 0:
+                print("Digite um valor maior que zero!")
+
+                continue
             return valor
 
         except:
@@ -19,6 +24,12 @@ def ler_int(mensagem):
 
         try:
             valor = int(entrada)
+            
+            if valor <= 0:
+                print("Digite um valor maior que zero!")
+
+                continue
+
             return valor
         
         except:
