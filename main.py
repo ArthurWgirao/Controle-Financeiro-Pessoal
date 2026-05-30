@@ -13,8 +13,11 @@ from transacoes import (
 )
 
 from metas import(
-    definit_meta,
-    verificar_metas
+    adicionar_meta,
+    verificar_metas,
+    listar_metas,
+    editar_meta,
+    remover_meta
 )
 
 from graficos import grafico_despesas_categoria
@@ -35,10 +38,15 @@ def menu():
 7 - Filtrar por Categoria
 8 - Total por Categoria
 9 - Gráfico de Despesas por Categoria
-10 - Definir Meta
+          
+10 - Adicionar Meta
 11 - Verificar Metas
-12 - Relatório Mensal
-13 - Sair
+12 - Listar Metas
+13 - Editar Metas
+14 - Remover Meta 
+
+15 - Relatório Mensal
+16 - Sair
 """)
 
 
@@ -57,18 +65,20 @@ def main():
         "7": filtrar_por_categoria,
         "8": total_por_categoria,
         "9": grafico_despesas_categoria,
-        "10": definit_meta,
+        "10": adicionar_meta,
         "11": verificar_metas,
-        "12": relatorio_mensal
+        "12": listar_metas,
+        "13": editar_meta,
+        "14": remover_meta,
+        "15": relatorio_mensal
     }
 
     while True:
-
         menu()
 
         opcao = input("Escolha uma opção: ")
 
-        if opcao == "13":
+        if opcao == "16":
             print("Saindo...")
             break
 
