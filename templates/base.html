@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+
+<html lang="pt-br">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>
+        Controle Financeiro
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}">
+
+</head>
+
+
+<body>
+
+
+    <div class="sidebar">
+
+        <h2>
+            💰 Finance
+        </h2>
+
+        <ul>
+
+            <li>
+                <a href="/">📊 Dashboard</a>
+            </li>
+
+            <li>
+                <a href="/receitas">💵 Receitas</a>
+            </li>
+
+            <li>
+                <a href="/despesas">💸 Despesas</a>
+            </li>
+
+            <li>
+                <a href="/metas">🎯 Metas</a>
+            </li>
+
+            <li>
+                <a href="/relatorios">📈 Relatórios</a>
+            </li>
+
+
+        </ul>
+
+    </div>
+
+
+    <main class="content">
+
+        {% block conteudo %}
+        {% endblock %}
+
+    </main>
+
+
+</body>
+
+</html>

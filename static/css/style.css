@@ -1,0 +1,135 @@
+/* ============================= */
+/* RESET GERAL */
+/* ============================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+/* ============================= */
+/* CORPO DA PÁGINA */
+/* ============================= */
+
+body {
+    background-color: #0f0f0f;
+    color: white;
+    font-family: Arial, sans-serif;
+    display: flex;
+}
+
+
+/* ============================= */
+/* SIDEBAR */
+/* ============================= */
+
+.sidebar {
+    width: 220px;
+    height: 100vh;
+    background-color: #111111;
+    padding: 25px;
+    border-right: 2px solid #facc15;
+}
+
+
+.sidebar h2 {
+    color: #facc15;
+    margin-bottom: 40px;
+}
+
+
+/* Remove bolinhas da lista */
+.sidebar ul {
+    list-style: none;
+}
+
+
+/* Espaçamento entre os itens */
+.sidebar li {
+    margin-bottom: 25px;
+}
+
+
+/* Links do menu */
+.sidebar a {
+    color: white;
+    text-decoration: none;
+    font-size: 18px;
+
+    display: block;
+    padding: 8px;
+
+    border-radius: 8px;
+
+    transition: 0.3s;
+}
+
+
+/* Efeito ao passar o mouse */
+.sidebar a:hover {
+    color: #facc15;
+    background-color: #1f1f1f;
+}
+
+
+/* ============================= */
+/* ÁREA DE CONTEÚDO */
+/* ============================= */
+
+.content {
+    flex: 1;
+    padding: 40px;
+}
+
+
+.content h1 {
+    color: #facc15;
+    margin-bottom: 30px;
+    font-size: 40px;
+}
+
+
+/* ============================= */
+/* CARDS DO DASHBOARD */
+/* ============================= */
+
+.cards {
+    display: flex;
+    gap: 25px;
+    flex-wrap: wrap;
+}
+
+
+.card {
+    width: 250px;
+
+    background-color: #1f1f1f;
+
+    padding: 25px;
+
+    border-radius: 15px;
+
+    text-align: center;
+
+    transition: 0.3s;
+}
+
+
+.card:hover {
+    transform: translateY(-8px);
+}
+
+
+.card h2 {
+    margin-bottom: 15px;
+    color: white;
+}
+
+
+.card p {
+    color: #facc15;
+    font-size: 25px;
+    font-weight: bold;
+}

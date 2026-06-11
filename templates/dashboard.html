@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h1>
+    Dashboard
+</h1>
+
+<div class="cards">
+
+
+    <div class="card">
+
+        <h2>
+            Saldo Atual
+        </h2>
+
+        <p>
+            R$ {{ "%.2f"|format(saldo) }}
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h2>
+            Receitas
+        </h2>
+
+        <p>
+            R$ {{ "%.2f"|format(receitas) }}
+        </p>
+
+    </div>
+
+    <div class="card">
+        
+        <h2>
+            Despesas
+        </h2>
+
+        <p>
+            R$ {{ "%.2f"|format(despesas) }}
+        </p>
+        
+    </div>
+
+</div>
+
+{% endblock %}
