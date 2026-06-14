@@ -2,44 +2,73 @@
 
 {% block conteudo %}
 
+
 <h1>Receitas</h1>
+
+
+<a href="/receitas/nova" class="btn-adicionar">
+    + Nova Receita
+</a>
+
 
 <table class="tabela">
 
-    <tr>
-        <th>Descrição</th>
-        <th>Categoria</th>
-        <th>Valor</th>
-        <th>Data</th>
-        <th>Ações</th>
-    </tr>
+<tr>
+    <th>Descrição</th>
+    <th>Categoria</th>
+    <th>Valor</th>
+    <th>Data</th>
+    <th>Ações</th>
+</tr>
 
-    {% for receita in receitas %}
 
-    <tr>
-        <td>{{ receita["descricao"] }}</td>
-        <td>{{ receita["categoria"] }}</td>
-        <td>R$ {{ "%.2f"|format(receita["valor"]) }}</td>
-        <td>{{ receita["data"] }}</td>
+{% for receita in receitas %}
 
-        <td>
-            <a href="/editar_receita/{{ receita['id'] }}" class="btn-editar">
-                ✏️
-            </a>
+<tr>
 
-            <a href="/excluir_receita/{{ receita['id'] }}"
-               class="btn-excluir">
-                🗑️
-            </a>
-        </td>
-    </tr>
+<td>
+    {{ receita["descricao"] }}
+</td>
 
-    {% endfor %}
+<td>
+    {{ receita["categoria"] }}
+</td>
+
+
+<td>
+    R$ {{ "%.2f"|format(receita["valor"]) }}
+</td>
+
+
+<td>
+    {{ receita["data"] }}
+</td>
+
+
+<td>
+
+<a href="/receitas/editar/{{ receita['id'] }}"
+class="btn-editar">
+✏️
+</a>
+
+
+<a href="/receitas/excluir/{{ receita['id'] }}"
+class="btn-excluir">
+🗑️
+</a>
+
+
+</td>
+
+
+</tr>
+
+
+{% endfor %}
+
 
 </table>
 
-<a href="/nova_receita" class="btn-adicionar">
-    ➕ Nova Receita
-</a>
 
 {% endblock %}
