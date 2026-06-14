@@ -2,6 +2,7 @@ import sqlite3
 
 def conectar():
     conexao = sqlite3.connect("finance.db")
+    conexao.row_factory = sqlite3.Row
     return conexao
 
 
@@ -17,7 +18,7 @@ def criar_tabela():
         tipo TEXT,
         valor REAL,
         categoria TEXT,
-        descrição TEXT,
+        descricao TEXT,
         data TEXT
 
     )

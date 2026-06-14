@@ -4,30 +4,42 @@
 
 <h1>Receitas</h1>
 
-
 <table class="tabela">
 
     <tr>
-        <th>ID</th>
-        <th>Descricao</th>
+        <th>Descrição</th>
         <th>Categoria</th>
         <th>Valor</th>
         <th>Data</th>
+        <th>Ações</th>
     </tr>
-
 
     {% for receita in receitas %}
 
     <tr>
-        <td>{{ receita[0] }}</td>
-        <td>{{ receita[1] }}</td>
-        <td>{{ receita[2] }}</td>
-        <td>R$ {{ "%.2f"|format(receita[3]) }}</td>
-        <td>{{ receita[4] }}</td>
+        <td>{{ receita["descricao"] }}</td>
+        <td>{{ receita["categoria"] }}</td>
+        <td>R$ {{ "%.2f"|format(receita["valor"]) }}</td>
+        <td>{{ receita["data"] }}</td>
+
+        <td>
+            <a href="/editar_receita/{{ receita['id'] }}" class="btn-editar">
+                ✏️
+            </a>
+
+            <a href="/excluir_receita/{{ receita['id'] }}"
+               class="btn-excluir">
+                🗑️
+            </a>
+        </td>
     </tr>
 
     {% endfor %}
 
 </table>
+
+<a href="/nova_receita" class="btn-adicionar">
+    ➕ Nova Receita
+</a>
 
 {% endblock %}

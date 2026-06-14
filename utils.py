@@ -16,21 +16,20 @@ def ler_float(mensagem):
         except:
             print("Digite um número válido!")
 
-def ler_int(mensagem):
-
+def ler_int(mensagem, permite_zero=False):
     while True:
-
-        entrada = input(mensagem).strip()
-
         try:
-            valor = int(entrada)
-            
-            if valor <= 0:
-                print("Digite um valor maior que zero!")
+            valor = int(input(mensagem))
 
+            if valor < 0:
+                print("Digite um valor positivo!")
+                continue
+
+            if not permite_zero and valor == 0:
+                print("Digite um valor maior que zero!")
                 continue
 
             return valor
-        
-        except:
-            print("Digite um número válido!")
+
+        except ValueError:
+            print("Digite um número inteiro válido.")

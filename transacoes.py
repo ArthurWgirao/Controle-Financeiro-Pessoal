@@ -165,11 +165,13 @@ def remover_transacao():
         print("Nenhuma transação cadastrada.")
         conexao.close()
         return
-    
+
     listar_transacoes()
 
-    indice_visual = ler_int("\nDigite o índice da transação que deseja remover: ")
-    
+    indice_visual = ler_int(
+        "\nDigite o índice da transação que deseja remover: ",
+        permite_zero=True
+    )
 
     # Verifica se índice existe
     if 0 <= indice_visual < len(transacoes):
