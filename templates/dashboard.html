@@ -2,49 +2,46 @@
 
 {% block conteudo %}
 
-<h1>
-    Dashboard
-</h1>
+<h1>📊 Dashboard</h1>
 
 <div class="cards">
 
-
     <div class="card">
-
-        <h2>
-            Saldo Atual
-        </h2>
-
-        <p>
-            R$ {{ "%.2f"|format(saldo) }}
-        </p>
-
+        <h2>💰 Saldo Atual</h2>
+        <p>R$ {{ "%.2f"|format(saldo) }}</p>
     </div>
 
+
     <div class="card">
-
-        <h2>
-            Receitas
-        </h2>
-
-        <p>
-            R$ {{ "%.2f"|format(receitas) }}
-        </p>
-
+        <h2>📈 Receitas</h2>
+        <p>R$ {{ "%.2f"|format(receitas) }}</p>
     </div>
 
-    <div class="card">
-        
-        <h2>
-            Despesas
-        </h2>
 
-        <p>
-            R$ {{ "%.2f"|format(despesas) }}
-        </p>
-        
+    <div class="card">
+        <h2>📉 Despesas</h2>
+        <p>R$ {{ "%.2f"|format(despesas) }}</p>
     </div>
 
 </div>
+
+
+<!-- Espaço para futuras funcionalidades -->
+
+<section class="dashboard-extra">
+
+    <h2>Resumo financeiro</h2>
+
+    <p>
+        Acompanhe suas receitas, despesas e a evolução do seu saldo.
+    </p>
+
+    <!-- Futuramente:
+        - Últimas transações
+        - Gráficos com Chart.js
+        - Metas de gastos
+    -->
+
+</section>
 
 {% endblock %}

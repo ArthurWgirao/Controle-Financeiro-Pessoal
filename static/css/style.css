@@ -1,6 +1,6 @@
-/* ============================= */
-/* RESET GERAL */
-/* ============================= */
+/* ========================= */
+/* RESET */
+/* ========================= */
 
 * {
     margin: 0;
@@ -9,109 +9,116 @@
 }
 
 
-/* ============================= */
-/* CORPO DA PÁGINA */
-/* ============================= */
+/* ========================= */
+/* BODY */
+/* ========================= */
 
 body {
-    background-color: #0f0f0f;
-    color: white;
-    font-family: Arial, sans-serif;
     display: flex;
+    background-color: #FFF7CC;
+    color: #111;
+    font-family: Arial, sans-serif;
 }
 
 
-/* ============================= */
+/* ========================= */
 /* SIDEBAR */
-/* ============================= */
+/* ========================= */
 
 .sidebar {
-    width: 220px;
+    width: 240px;
     height: 100vh;
-    background-color: #111111;
+
+    background-color: #FACC15;
+
     padding: 25px;
-    border-right: 2px solid #facc15;
+
+    box-shadow: 3px 0 10px rgba(0,0,0,0.15);
 }
 
 
 .sidebar h2 {
-    color: #facc15;
     margin-bottom: 40px;
+    font-size: 30px;
 }
 
 
-/* Remove bolinhas da lista */
 .sidebar ul {
     list-style: none;
 }
 
 
-/* Espaçamento entre os itens */
 .sidebar li {
-    margin-bottom: 25px;
+    margin-bottom: 15px;
 }
 
 
-/* Links do menu */
 .sidebar a {
-    color: white;
+    display: block;
+
+    padding: 12px;
+
     text-decoration: none;
+
+    color: #111;
+
     font-size: 18px;
 
-    display: block;
-    padding: 8px;
-
-    border-radius: 8px;
+    border-radius: 10px;
 
     transition: 0.3s;
 }
 
 
-/* Efeito ao passar o mouse */
 .sidebar a:hover {
-    color: #facc15;
-    background-color: #1f1f1f;
+    background-color: #111;
+    color: #FACC15;
 }
 
 
-/* ============================= */
-/* ÁREA DE CONTEÚDO */
-/* ============================= */
+/* ========================= */
+/* CONTEÚDO */
+/* ========================= */
 
 .content {
     flex: 1;
-    padding: 40px;
+    padding: 35px;
 }
 
 
 .content h1 {
-    color: #facc15;
-    margin-bottom: 30px;
-    font-size: 40px;
+    font-size: 48px;
+    margin-bottom: 25px;
+
+    color: #111;
 }
 
 
-/* ============================= */
-/* CARDS DO DASHBOARD */
-/* ============================= */
+/* ========================= */
+/* CARDS */
+/* ========================= */
 
 .cards {
+
     display: flex;
+
     gap: 25px;
+
     flex-wrap: wrap;
 }
 
 
 .card {
+
     width: 250px;
 
-    background-color: #1f1f1f;
+    background-color: white;
 
     padding: 25px;
 
-    border-radius: 15px;
+    border-radius: 18px;
 
-    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
 
     transition: 0.3s;
 }
@@ -123,13 +130,62 @@ body {
 
 
 .card h2 {
-    margin-bottom: 15px;
-    color: white;
+    color: #333;
+
+    margin-bottom: 10px;
 }
 
 
 .card p {
-    color: #facc15;
-    font-size: 25px;
+    color: #EAB308;
+
+    font-size: 30px;
+
     font-weight: bold;
+}
+
+
+/* ========================= */
+/* TABELAS */
+/* ========================= */
+
+.tabela {
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+    background-color: white;
+
+    border-radius: 15px;
+
+    overflow: hidden;
+
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+
+.tabela th {
+
+    background-color: #FACC15;
+
+    color: #111;
+
+    padding: 15px;
+
+    text-align: left;
+}
+
+
+.tabela td {
+
+    padding: 15px;
+
+    border-bottom: 1px solid #ddd;
+}
+
+
+.tabela tr:hover {
+
+    background-color: #FFF7CC;
 }
