@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect
 
 from database import (
     conectar,
@@ -103,6 +103,121 @@ def receitas():
         "receitas.html",
         receitas=lista_receitas
     )
+
+
+
+@app.route("/receitas/nova", methods=["GET", "POST"])
+def nova_receita():
+
+    if request.method == "POST":
+
+        descricao = request.form["descricao"]
+        categoria = request.form["categoria"]
+        valor = float(request.form["valor"])
+        data = request.form["data"]
+
+        conexao = conectar()
+        cursor = conexao.cursor()
+
+        cursor.execute("""
+            INSERT INTO transacoes
+            (tipo, valor, categoria, descricao, data)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            "receita",
+            valor,
+            categoria,
+            descricao,
+            data
+        ))
+
+        conexao.commit()
+        conexao.close()
+
+        return redirect("/receitas")
+
+
+    return render_template(
+        "form_receita.html",
+        titulo="Nova Receita",
+        receita=None
+    )
+
+
+
+@app.route("/receitas/editar/<int:id>", methods=["GET", "POST"])
+def editar_receita(id):
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+
+    if request.method == "POST":
+
+        descricao = request.form["descricao"]
+        categoria = request.form["categoria"]
+        valor = float(request.form["valor"])
+        data = request.form["data"]
+
+
+        cursor.execute("""
+            UPDATE transacoes
+            SET descricao = ?,
+                categoria = ?,
+                valor = ?,
+                data = ?
+            WHERE id = ?
+        """, (
+            descricao,
+            categoria,
+            valor,
+            data,
+            id
+        ))
+
+        conexao.commit()
+        conexao.close()
+
+        return redirect("/receitas")
+
+
+    cursor.execute(
+        "SELECT * FROM transacoes WHERE id = ?",
+        (id,)
+    )
+
+    receita = cursor.fetchone()
+
+    conexao.close()
+
+
+    return render_template(
+        "form_receita.html",
+        titulo="Editar Receita",
+        receita=receita
+    )
+
+
+@app.route("/receitas/excluir/<int:id>")
+def excluir_receita(id):
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+
+    cursor.execute(
+        "DELETE FROM transacoes WHERE id = ?",
+        (id,)
+    )
+
+
+    conexao.commit()
+    conexao.close()
+
+
+    return redirect("/receitas")
+
+
 
 def despesas():
 

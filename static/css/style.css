@@ -189,3 +189,68 @@ body {
 
     background-color: #FFF7CC;
 }
+
+
+/* BOTÕES */
+
+.btn-adicionar,
+.btn-editar,
+.btn-excluir,
+button {
+
+    text-decoration: none;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+
+.btn-adicionar,
+button {
+
+    background: #f4c400;
+    color: black;
+}
+
+
+.btn-editar {
+
+    background: #2ecc71;
+    color: white;
+}
+
+
+.btn-excluir {
+
+    background: #e74c3c;
+    color: white;
+}
+
+
+/* FORMULÁRIOS */
+
+.formulario {
+
+    background: white;
+    width: 400px;
+    padding: 25px;
+    border-radius: 15px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    margin-top: 20px;
+
+}
+
+
+.formulario input {
+
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid gray;
+
+}

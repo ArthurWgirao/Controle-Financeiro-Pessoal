@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+
+{% block conteudo %}
+
+
+<h1>{{ titulo }}</h1>
+
+
+<form method="POST" class="formulario">
+
+
+<label>Descrição</label>
+<input 
+type="text"
+name="descricao"
+value="{{ receita['descricao'] if receita else '' }}"
+required>
+
+
+<label>Categoria</label>
+<input 
+type="text"
+name="categoria"
+value="{{ receita['categoria'] if receita else '' }}"
+required>
+
+
+<label>Valor</label>
+<input
+type="number"
+step="0.01"
+min="0"
+name="valor"
+value="{{ receita['valor'] if receita else '' }}"
+required>
+
+
+<label>Data</label>
+
+<input
+type="text"
+name="data"
+value="{{ receita['data'] if receita else '' }}"
+required>
+
+
+<button type="submit">
+Salvar
+</button>
+
+
+</form>
+
+
+{% endblock %}
