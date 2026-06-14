@@ -29,7 +29,7 @@ def obter_resumo():
 
     for tipo, valor in transacoes:
 
-        if tipo == "receita":
+        if tipo.lower() == "receita":
             receitas += valor
 
         else:
@@ -39,9 +39,28 @@ def obter_resumo():
 
     return receitas, despesas, saldo
 
+def testar_banco():
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT *
+        FROM transacoes
+    """)
+
+    dados = cursor.fetchall()
+
+    print("DADOS DO BANCO:")
+    print(dados)
+
+    conexao.close()
+
 # Dashboard
 @app.route("/")
 def dashboard():
+
+    testar_banco()
 
     receitas, despesas, saldo = obter_resumo()
 
@@ -53,13 +72,38 @@ def dashboard():
     )
 
 # Receitas
+
+def buscar_receitas():
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, descricao, categoria, valor, data
+        FROM transacoes
+        WHERE tipo = 'receita'
+    """)
+
+
+    receitas = cursor.fetchall()
+
+    print("RECEITAS:", receitas)
+
+
+    conexao.close()
+
+    return receitas
+
 @app.route("/receitas")
 def receitas():
 
-    return render_template("receitas.html")
+    lista_receitas = buscar_receitas()
 
-# Despesas 
-@app.route("/despesas")
+    return render_template(
+        "receitas.html",
+        receitas=lista_receitas
+    )
+
 def despesas():
 
     return render_template("despesas.html")
@@ -79,3 +123,20 @@ def relatorios():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+
+def testar_banco():
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, tipo, valor, categoria, descricao, data
+        FROM transacoes
+    """)
+
+    dados = cursor.fetchall()
+
+    print(dados)
+
+    conexao.close()

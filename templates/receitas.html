@@ -4,6 +4,30 @@
 
 <h1>Receitas</h1>
 
-<p>Em breve será possível visualizar e adicionar receitas.</p>
+
+<table class="tabela">
+
+    <tr>
+        <th>ID</th>
+        <th>Descricao</th>
+        <th>Categoria</th>
+        <th>Valor</th>
+        <th>Data</th>
+    </tr>
+
+
+    {% for receita in receitas %}
+
+    <tr>
+        <td>{{ receita[0] }}</td>
+        <td>{{ receita[1] }}</td>
+        <td>{{ receita[2] }}</td>
+        <td>R$ {{ "%.2f"|format(receita[3]) }}</td>
+        <td>{{ receita[4] }}</td>
+    </tr>
+
+    {% endfor %}
+
+</table>
 
 {% endblock %}
