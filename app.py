@@ -123,20 +123,3 @@ def relatorios():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-def testar_banco():
-
-    conexao = conectar()
-    cursor = conexao.cursor()
-
-    cursor.execute("""
-        SELECT id, tipo, valor, categoria, descricao, data
-        FROM transacoes
-    """)
-
-    dados = cursor.fetchall()
-
-    print(dados)
-
-    conexao.close()
