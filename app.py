@@ -552,10 +552,265 @@ def validar_despesa(descricao, categoria, valor_informado):
     return None
 
 # Metas
+
+def buscar_metas_mensais(mes_referencia):
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            m.id,
+            m.categoria,
+            m.limite,
+            COALESCE(SUM(t.valor), 0) AS gasto
+        FROM metas AS m
+        LEFT JOIN transacoes AS t
+            ON t.categoria = m.categoria
+            AND t.tipo = 'despesa'
+            AND substr(t.data, 4, 7) = ?
+        GROUP BY m.id, m.categoria, m.limite
+        ORDER BY m.categoria
+        """,
+        (mes_referencia,)
+    )
+
+    registros = cursor.fetchall()
+    conexao.close()
+
+    metas_calculadas = []
+
+    for registro in registros:
+
+        limite = registro["limite"]
+        gasto = registro["gasto"]
+        restante = limite - gasto
+        percentual = (gasto / limite) * 100 if limite > 0 else 0
+
+        if percentual >= 100:
+            situacao = "Meta ultrapassada"
+            classe_situacao = "ultrapassada"
+        elif percentual >= 80:
+            situacao = "Atenção"
+            classe_situacao = "atencao"
+        else:
+            situacao = "Dentro da meta"
+            classe_situacao = "dentro"
+
+        metas_calculadas.append({
+            "id": registro["id"],
+            "categoria": registro["categoria"],
+            "limite": limite,
+            "gasto": gasto,
+            "restante": restante,
+            "percentual": percentual,
+            "largura_barra": min(percentual, 100),
+            "situacao": situacao,
+            "classe_situacao": classe_situacao
+        })
+
+    return metas_calculadas
+
+
 @app.route("/metas")
 def metas():
 
-    return render_template("metas.html")
+    mes_referencia = datetime.now().strftime("%m/%Y")
+    lista_metas = buscar_metas_mensais(mes_referencia)
+
+    return render_template(
+        "metas.html",
+        metas=lista_metas,
+        mes_referencia=mes_referencia,
+        formatar_moeda=formatar_moeda
+    )
+
+
+@app.route("/metas/nova", methods=["GET", "POST"])
+def nova_meta():
+
+    if request.method == "POST":
+
+        categoria = request.form.get("categoria", "").strip()
+        limite_informado = request.form.get("limite", "").strip()
+
+        dados_formulario = {
+            "categoria": categoria,
+            "limite": limite_informado
+        }
+
+        erro = validar_meta(categoria, limite_informado)
+
+        if not erro:
+            conexao = conectar()
+            cursor = conexao.cursor()
+
+            cursor.execute(
+                "SELECT id FROM metas WHERE categoria = ?",
+                (categoria,)
+            )
+
+            if cursor.fetchone():
+                erro = "Já existe uma meta para esta categoria."
+
+            if erro:
+                conexao.close()
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO metas (categoria, limite)
+                    VALUES (?, ?)
+                    """,
+                    (categoria, float(limite_informado))
+                )
+
+                conexao.commit()
+                conexao.close()
+
+                return redirect("/metas")
+
+        return render_template(
+            "form_meta.html",
+            titulo="Nova Meta Mensal",
+            meta=dados_formulario,
+            categorias=categorias,
+            erro=erro,
+            edicao=False
+        ), 400
+
+    return render_template(
+        "form_meta.html",
+        titulo="Nova Meta Mensal",
+        meta=None,
+        categorias=categorias,
+        erro=None,
+        edicao=False
+    )
+
+
+@app.route("/metas/editar/<int:id>", methods=["GET", "POST"])
+def editar_meta(id):
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute(
+        "SELECT id, categoria, limite FROM metas WHERE id = ?",
+        (id,)
+    )
+
+    meta = cursor.fetchone()
+
+    if meta is None:
+        conexao.close()
+        abort(404)
+
+    if request.method == "POST":
+
+        limite_informado = request.form.get("limite", "").strip()
+        erro = validar_limite_meta(limite_informado)
+
+        if erro:
+            dados_formulario = {
+                "id": meta["id"],
+                "categoria": meta["categoria"],
+                "limite": limite_informado
+            }
+
+            conexao.close()
+
+            return render_template(
+                "form_meta.html",
+                titulo="Editar Meta Mensal",
+                meta=dados_formulario,
+                categorias=categorias,
+                erro=erro,
+                edicao=True
+            ), 400
+
+        cursor.execute(
+            """
+            UPDATE metas
+            SET limite = ?
+            WHERE id = ?
+            """,
+            (float(limite_informado), id)
+        )
+
+        conexao.commit()
+        conexao.close()
+
+        return redirect("/metas")
+
+    conexao.close()
+
+    return render_template(
+        "form_meta.html",
+        titulo="Editar Meta Mensal",
+        meta=meta,
+        categorias=categorias,
+        erro=None,
+        edicao=True
+    )
+
+
+@app.route("/metas/excluir/<int:id>", methods=["POST"])
+def excluir_meta(id):
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute(
+        "DELETE FROM metas WHERE id = ?",
+        (id,)
+    )
+
+    excluiu = cursor.rowcount
+
+    conexao.commit()
+    conexao.close()
+
+    if not excluiu:
+        abort(404)
+
+    return redirect("/metas")
+
+
+def validar_meta(categoria, limite_informado):
+
+    if categoria not in categorias:
+        return "Selecione uma categoria válida."
+
+    return validar_limite_meta(limite_informado)
+
+
+def validar_limite_meta(limite_informado):
+
+    if not limite_informado:
+        return "Informe o limite mensal."
+
+    try:
+        limite = float(limite_informado)
+    except ValueError:
+        return "Informe um limite numérico válido."
+
+    if not math.isfinite(limite) or limite <= 0:
+        return "O limite deve ser maior que zero."
+
+    return None
+
+
+def formatar_moeda(valor):
+
+    valor_formatado = f"{valor:,.2f}"
+
+    return (
+        valor_formatado
+        .replace(",", "TEMP")
+        .replace(".", ",")
+        .replace("TEMP", ".")
+    )
 
 
 # Relatórios
