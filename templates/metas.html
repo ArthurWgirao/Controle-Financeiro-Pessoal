@@ -2,8 +2,99 @@
 
 {% block conteudo %}
 
-<h1>Metas</h1>
+<h1>Metas mensais</h1>
 
-<p>Em breve será possível gerenciar metas de gastos.</p>
+<p class="mes-referencia">
+    Mês de referência: <strong>{{ mes_referencia }}</strong>
+</p>
+
+<a href="/metas/nova" class="btn-adicionar">
+    + Nova Meta
+</a>
+
+{% if metas %}
+
+<div class="metas-grid">
+
+{% for meta in metas %}
+
+<article class="meta-card {{ meta['classe_situacao'] }}">
+
+    <div class="meta-cabecalho">
+        <h2>{{ meta["categoria"] }}</h2>
+        <span class="meta-situacao">{{ meta["situacao"] }}</span>
+    </div>
+
+    <div class="meta-valores">
+        <p>
+            <span>Limite mensal</span>
+            <strong>R$ {{ formatar_moeda(meta["limite"]) }}</strong>
+        </p>
+
+        <p>
+            <span>Gasto no mês</span>
+            <strong>R$ {{ formatar_moeda(meta["gasto"]) }}</strong>
+        </p>
+
+        <p>
+            {% if meta["restante"] < 0 %}
+                <span>Limite ultrapassado em</span>
+                <strong class="valor-ultrapassado">
+                    R$ {{ formatar_moeda(-meta["restante"]) }}
+                </strong>
+            {% else %}
+                <span>Valor restante</span>
+                <strong>R$ {{ formatar_moeda(meta["restante"]) }}</strong>
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="progresso-informacao">
+        <span>Utilização</span>
+        <strong>{{ "%.2f"|format(meta["percentual"]) }}%</strong>
+    </div>
+
+    <div
+    class="barra-progresso"
+    role="progressbar"
+    aria-valuenow="{{ meta['percentual'] }}"
+    aria-valuemin="0"
+    aria-valuemax="100">
+        <div
+        class="barra-preenchimento"
+        style="width: {{ meta['largura_barra'] }}%;">
+        </div>
+    </div>
+
+    <div class="meta-acoes">
+        <a href="/metas/editar/{{ meta['id'] }}" class="btn-editar">
+            Editar
+        </a>
+
+        <form
+        method="POST"
+        action="/metas/excluir/{{ meta['id'] }}"
+        class="form-excluir"
+        onsubmit="return confirm('Deseja realmente excluir esta meta?');">
+            <button type="submit" class="btn-excluir">
+                Excluir
+            </button>
+        </form>
+    </div>
+
+</article>
+
+{% endfor %}
+
+</div>
+
+{% else %}
+
+<div class="estado-vazio">
+    <h2>Nenhuma meta cadastrada</h2>
+    <p>Crie uma meta mensal para acompanhar seus gastos por categoria.</p>
+</div>
+
+{% endif %}
 
 {% endblock %}

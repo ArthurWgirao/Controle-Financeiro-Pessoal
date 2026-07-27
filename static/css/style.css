@@ -273,3 +273,153 @@ button {
     background-color: #fff;
     color: #b42318;
 }
+
+
+/* METAS */
+
+.mes-referencia {
+    margin-bottom: 25px;
+    font-size: 18px;
+}
+
+.metas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 25px;
+}
+
+.meta-card {
+    padding: 22px;
+    border: 2px solid #f4c400;
+    border-radius: 15px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.meta-cabecalho,
+.progresso-informacao {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.meta-cabecalho {
+    margin-bottom: 20px;
+}
+
+.meta-situacao {
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.meta-card.dentro .meta-situacao {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.meta-card.atencao {
+    border-color: #f59e0b;
+}
+
+.meta-card.atencao .meta-situacao {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.meta-card.ultrapassada {
+    border-color: #e74c3c;
+}
+
+.meta-card.ultrapassada .meta-situacao {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.meta-valores {
+    display: grid;
+    gap: 10px;
+}
+
+.meta-valores p {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.valor-ultrapassado {
+    color: #b42318;
+}
+
+.progresso-informacao {
+    margin-top: 20px;
+    margin-bottom: 8px;
+}
+
+.barra-progresso {
+    width: 100%;
+    height: 14px;
+    overflow: hidden;
+    border-radius: 20px;
+    background: #e5e7eb;
+}
+
+.barra-preenchimento {
+    height: 100%;
+    border-radius: inherit;
+    background: #22c55e;
+}
+
+.meta-card.atencao .barra-preenchimento {
+    background: #f59e0b;
+}
+
+.meta-card.ultrapassada .barra-preenchimento {
+    background: #e74c3c;
+}
+
+.meta-acoes {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.campo-somente-leitura {
+    padding: 10px;
+    border-radius: 8px;
+    background: #f3f4f6;
+    font-weight: bold;
+}
+
+.estado-vazio {
+    max-width: 600px;
+    margin-top: 25px;
+    padding: 30px;
+    border: 2px dashed #f4c400;
+    border-radius: 15px;
+    background: white;
+    text-align: center;
+}
+
+.estado-vazio h2 {
+    margin-bottom: 10px;
+}
+
+@media (max-width: 700px) {
+    .content {
+        padding: 20px;
+    }
+
+    .formulario,
+    .mensagem-erro {
+        width: 100%;
+    }
+
+    .metas-grid {
+        grid-template-columns: 1fr;
+    }
+}
