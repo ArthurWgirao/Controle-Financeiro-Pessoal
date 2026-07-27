@@ -1,7 +1,10 @@
 import sqlite3
 
+CAMINHO_BANCO = "finance.db"
+
+
 def conectar():
-    conexao = sqlite3.connect("finance.db")
+    conexao = sqlite3.connect(CAMINHO_BANCO)
     conexao.row_factory = sqlite3.Row
     return conexao
 

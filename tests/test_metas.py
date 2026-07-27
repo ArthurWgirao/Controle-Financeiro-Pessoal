@@ -1,0 +1,187 @@
+from datetime import datetime
+
+import pytest
+
+import metas
+
+
+def test_funcoes_de_persistencia_de_meta(caminho_banco):
+    identificador = metas.cadastrar_meta("Comida", 100)
+    assert metas.categoria_possui_meta("Comida")
+    assert metas.buscar_meta_por_id(identificador)["limite"] == 100
+
+    assert metas.atualizar_limite_meta(identificador, 150)
+    atualizada = metas.buscar_meta_por_id(identificador)
+    assert atualizada["categoria"] == "Comida"
+    assert atualizada["limite"] == 150
+
+    assert metas.excluir_meta_por_id(identificador)
+    assert metas.buscar_meta_por_id(identificador) is None
+
+
+@pytest.mark.parametrize(
+    ("gasto", "situacao", "classe", "restante", "largura"),
+    [
+        (0, "Dentro da meta", "dentro", 100, 0),
+        (79, "Dentro da meta", "dentro", 21, 79),
+        (80, "Atenção", "atencao", 20, 80),
+        (100, "Meta ultrapassada", "ultrapassada", 0, 100),
+        (120, "Meta ultrapassada", "ultrapassada", -20, 100)
+    ]
+)
+def test_calculo_dos_estados_da_meta(
+    gasto,
+    situacao,
+    classe,
+    restante,
+    largura
+):
+    dados = metas.calcular_dados_meta(
+        {"id": 1, "categoria": "Comida", "limite": 100},
+        gasto
+    )
+    assert dados["situacao"] == situacao
+    assert dados["classe_situacao"] == classe
+    assert dados["restante"] == restante
+    assert dados["percentual"] == pytest.approx(gasto)
+    assert dados["largura_barra"] == largura
+
+
+def test_gasto_mensal_ignora_receita_e_despesa_antiga(
+    caminho_banco,
+    inserir_despesa,
+    inserir_receita,
+    data_atual,
+    data_mes_anterior
+):
+    inserir_despesa(valor=30, data=data_atual)
+    inserir_despesa(valor=500, data=data_mes_anterior)
+    inserir_receita(valor=900, data=data_atual)
+
+    mes = datetime.now().strftime("%m/%Y")
+    assert metas.calcular_gasto_mensal_por_categoria(
+        "Comida", mes
+    ) == 30
+
+
+def test_listagem_mensal_integra_despesas(
+    inserir_meta,
+    inserir_despesa,
+    data_atual
+):
+    inserir_meta(limite=100)
+    inserir_despesa(valor=40, data=data_atual)
+
+    lista = metas.listar_metas_mensais(
+        datetime.now().strftime("%m/%Y")
+    )
+    assert lista[0]["gasto"] == 40
+    assert lista[0]["restante"] == 60
+
+
+def test_pagina_vazia_de_metas(cliente):
+    resposta = cliente.get("/metas")
+    assert resposta.status_code == 200
+    assert "Nenhuma meta cadastrada" in resposta.get_data(as_text=True)
+
+
+def test_cadastro_web_de_meta_e_duplicidade(cliente, conexao_banco):
+    dados = {"categoria": "Comida", "limite": "100"}
+    assert cliente.post("/metas/nova", data=dados).status_code == 302
+    resposta = cliente.post("/metas/nova", data=dados)
+    assert resposta.status_code == 400
+    assert "Já existe" in resposta.get_data(as_text=True)
+    assert len(conexao_banco("SELECT * FROM metas")) == 1
+
+
+@pytest.mark.parametrize("limite", ["", "0", "-1", "texto", "inf", "NaN"])
+def test_rota_meta_rejeita_limite_invalido(cliente, limite):
+    resposta = cliente.post(
+        "/metas/nova",
+        data={"categoria": "Comida", "limite": limite}
+    )
+    assert resposta.status_code == 400
+    assert f'value="{limite}"' in resposta.get_data(as_text=True)
+
+
+def test_rota_meta_rejeita_categoria_invalida(cliente):
+    assert cliente.post(
+        "/metas/nova",
+        data={"categoria": "Inválida", "limite": "100"}
+    ).status_code == 400
+
+
+def test_edicao_web_preserva_categoria(
+    cliente,
+    inserir_meta,
+    conexao_banco
+):
+    identificador = inserir_meta(categoria="Comida", limite=100)
+    resposta = cliente.post(
+        f"/metas/editar/{identificador}",
+        data={"categoria": "Lazer", "limite": "200"}
+    )
+    assert resposta.status_code == 302
+    meta = conexao_banco(
+        "SELECT * FROM metas WHERE id = ?",
+        (identificador,)
+    )[0]
+    assert meta["categoria"] == "Comida"
+    assert meta["limite"] == 200
+
+
+def test_formulario_de_edicao_e_limite_invalido(
+    cliente,
+    inserir_meta
+):
+    identificador = inserir_meta(categoria="Comida", limite=100)
+    resposta_get = cliente.get(f"/metas/editar/{identificador}")
+    assert resposta_get.status_code == 200
+    assert "Comida" in resposta_get.get_data(as_text=True)
+
+    resposta_post = cliente.post(
+        f"/metas/editar/{identificador}",
+        data={"limite": "NaN"}
+    )
+    assert resposta_post.status_code == 400
+    assert 'value="NaN"' in resposta_post.get_data(as_text=True)
+
+
+def test_ids_inexistentes_de_meta_retornam_404(cliente):
+    assert cliente.get("/metas/editar/999999").status_code == 404
+    assert cliente.post(
+        "/metas/editar/999999",
+        data={"limite": "100"}
+    ).status_code == 404
+    assert cliente.post("/metas/excluir/999999").status_code == 404
+
+
+def test_exclusao_meta_nao_exclui_transacoes(
+    cliente,
+    inserir_meta,
+    inserir_despesa,
+    conexao_banco
+):
+    meta_id = inserir_meta()
+    transacao_id = inserir_despesa()
+    html = cliente.get("/metas").get_data(as_text=True)
+    assert "confirm(" in html
+    assert cliente.get(f"/metas/excluir/{meta_id}").status_code == 405
+    assert cliente.post(f"/metas/excluir/{meta_id}").status_code == 302
+    assert conexao_banco(
+        "SELECT id FROM transacoes WHERE id = ?",
+        (transacao_id,)
+    )
+
+
+def test_barra_visual_limitada_em_cem(
+    cliente,
+    inserir_meta,
+    inserir_despesa,
+    data_atual
+):
+    inserir_meta(limite=100)
+    inserir_despesa(valor=120, data=data_atual)
+    html = cliente.get("/metas").get_data(as_text=True)
+    assert "120.00%" in html
+    assert "width: 100%;" in html
