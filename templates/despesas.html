@@ -4,6 +4,63 @@
 
 <h1>Despesas</h1>
 
-<p>Em breve será possível visualizar e adicionar despesas.</p>
+<a href="/despesas/nova" class="btn-adicionar">
+    + Nova Despesa
+</a>
+
+<table class="tabela">
+
+<tr>
+    <th>Descrição</th>
+    <th>Categoria</th>
+    <th>Valor</th>
+    <th>Data</th>
+    <th>Ações</th>
+</tr>
+
+{% for despesa in despesas %}
+
+<tr>
+
+<td>
+    {{ despesa["descricao"] }}
+</td>
+
+<td>
+    {{ despesa["categoria"] }}
+</td>
+
+<td>
+    R$ {{ "%.2f"|format(despesa["valor"]) }}
+</td>
+
+<td>
+    {{ despesa["data"] }}
+</td>
+
+<td>
+
+<a href="/despesas/editar/{{ despesa['id'] }}"
+class="btn-editar">
+✏️
+</a>
+
+<form
+method="POST"
+action="/despesas/excluir/{{ despesa['id'] }}"
+class="form-excluir"
+onsubmit="return confirm('Deseja realmente excluir esta despesa?');">
+    <button type="submit" class="btn-excluir" title="Excluir despesa">
+        🗑️
+    </button>
+</form>
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+</table>
 
 {% endblock %}
