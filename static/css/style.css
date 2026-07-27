@@ -423,3 +423,152 @@ button {
         grid-template-columns: 1fr;
     }
 }
+
+
+/* RELATÓRIOS */
+
+.filtros-relatorio {
+    display: flex;
+    align-items: end;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 20px;
+    border-radius: 15px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.filtros-relatorio div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filtros-relatorio select,
+.filtros-relatorio input {
+    min-width: 160px;
+    padding: 10px;
+    border: 1px solid #888;
+    border-radius: 8px;
+}
+
+.periodo-relatorio {
+    margin-bottom: 20px;
+    font-size: 18px;
+}
+
+.indicadores-relatorio {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 16px;
+}
+
+.indicador-relatorio {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 120px;
+    padding: 20px;
+    border-top: 5px solid #FACC15;
+    border-radius: 14px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.indicador-relatorio strong {
+    font-size: 25px;
+}
+
+.indicador-relatorio.receita {
+    border-color: #16A34A;
+}
+
+.indicador-relatorio.despesa,
+.indicador-relatorio.saldo.negativo {
+    border-color: #DC2626;
+}
+
+.indicador-relatorio.saldo.positivo {
+    border-color: #16A34A;
+}
+
+.indicador-relatorio.saldo.zerado {
+    border-color: #6B7280;
+}
+
+.secao-relatorio {
+    margin-top: 30px;
+}
+
+.secao-relatorio h2 {
+    margin-bottom: 15px;
+}
+
+.relatorio-duas-colunas {
+    display: grid;
+    grid-template-columns: minmax(420px, 1.4fr) minmax(280px, 1fr);
+    gap: 20px;
+    align-items: stretch;
+}
+
+.tabela-responsiva {
+    overflow-x: auto;
+}
+
+.grafico-container {
+    position: relative;
+    min-height: 320px;
+    padding: 18px;
+    border-radius: 15px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.grafico-evolucao {
+    height: 360px;
+}
+
+.mensagem-sem-dados {
+    padding: 22px;
+    border-radius: 12px;
+    background: white;
+}
+
+.estado-vazio-relatorio {
+    max-width: none;
+}
+
+.erro-relatorio {
+    margin-top: 15px;
+}
+
+@media (max-width: 950px) {
+    .relatorio-duas-colunas {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    body {
+        display: block;
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+    }
+
+    .filtros-relatorio {
+        align-items: stretch;
+    }
+
+    .filtros-relatorio select,
+    .filtros-relatorio input {
+        width: 100%;
+    }
+
+    .grafico-container {
+        min-height: 280px;
+    }
+}
