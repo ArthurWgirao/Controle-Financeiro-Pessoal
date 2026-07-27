@@ -53,10 +53,15 @@ class="btn-editar">
 </a>
 
 
-<a href="/receitas/excluir/{{ receita['id'] }}"
-class="btn-excluir">
-🗑️
-</a>
+<form
+method="POST"
+action="/receitas/excluir/{{ receita['id'] }}"
+class="form-excluir"
+onsubmit="return confirm('Deseja realmente excluir esta receita?');">
+    <button type="submit" class="btn-excluir" title="Excluir receita">
+        🗑️
+    </button>
+</form>
 
 
 </td>

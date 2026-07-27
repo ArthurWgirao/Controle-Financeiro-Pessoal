@@ -1,5 +1,9 @@
-from flask import Flask, render_template, request, redirect
+from datetime import datetime
+import math
 
+from flask import Flask, abort, render_template, request, redirect
+
+from categorias import categorias
 from database import (
     conectar,
     criar_tabela
@@ -32,7 +36,7 @@ def obter_resumo():
         if tipo.lower() == "receita":
             receitas += valor
 
-        else:
+        elif tipo.lower() == "despesa":
             despesas += valor
 
     saldo = receitas - despesas
@@ -60,8 +64,6 @@ def testar_banco():
 @app.route("/")
 def dashboard():
 
-    testar_banco()
-
     receitas, despesas, saldo = obter_resumo()
 
     return render_template(
@@ -82,13 +84,11 @@ def buscar_receitas():
         SELECT id, descricao, categoria, valor, data
         FROM transacoes
         WHERE tipo = 'receita'
+        ORDER BY id DESC
     """)
 
 
     receitas = cursor.fetchall()
-
-    print("RECEITAS:", receitas)
-
 
     conexao.close()
 
@@ -111,10 +111,33 @@ def nova_receita():
 
     if request.method == "POST":
 
-        descricao = request.form["descricao"]
-        categoria = request.form["categoria"]
-        valor = float(request.form["valor"])
-        data = request.form["data"]
+        descricao = request.form.get("descricao", "").strip()
+        categoria = request.form.get("categoria", "").strip()
+        valor_informado = request.form.get("valor", "").strip()
+
+        dados_formulario = {
+            "descricao": descricao,
+            "categoria": categoria,
+            "valor": valor_informado
+        }
+
+        erro = validar_receita(
+            descricao,
+            categoria,
+            valor_informado
+        )
+
+        if erro:
+            return render_template(
+                "form_receita.html",
+                titulo="Nova Receita",
+                receita=dados_formulario,
+                categorias=categorias,
+                erro=erro
+            ), 400
+
+        valor = float(valor_informado)
+        data = datetime.now().strftime("%d/%m/%Y")
 
         conexao = conectar()
         cursor = conexao.cursor()
@@ -140,7 +163,9 @@ def nova_receita():
     return render_template(
         "form_receita.html",
         titulo="Nova Receita",
-        receita=None
+        receita=None,
+        categorias=categorias,
+        erro=None
     )
 
 
@@ -151,27 +176,76 @@ def editar_receita(id):
     conexao = conectar()
     cursor = conexao.cursor()
 
+    cursor.execute(
+        """
+        SELECT id, tipo, valor, categoria, descricao, data
+        FROM transacoes
+        WHERE id = ? AND tipo = 'receita'
+        """,
+        (id,)
+    )
+
+    receita = cursor.fetchone()
+
+    if receita is None:
+        conexao.close()
+        abort(404)
 
     if request.method == "POST":
 
-        descricao = request.form["descricao"]
-        categoria = request.form["categoria"]
-        valor = float(request.form["valor"])
-        data = request.form["data"]
+        descricao_informada = request.form.get("descricao")
+        categoria_informada = request.form.get("categoria")
+        valor_informado = request.form.get("valor", "").strip()
 
+        descricao = (
+            descricao_informada.strip()
+            if descricao_informada and descricao_informada.strip()
+            else receita["descricao"]
+        )
+        categoria = (
+            categoria_informada.strip()
+            if categoria_informada and categoria_informada.strip()
+            else receita["categoria"]
+        )
+
+        dados_formulario = {
+            "id": receita["id"],
+            "tipo": receita["tipo"],
+            "descricao": descricao,
+            "categoria": categoria,
+            "valor": valor_informado,
+            "data": receita["data"]
+        }
+
+        erro = validar_receita(
+            descricao,
+            categoria,
+            valor_informado
+        )
+
+        if erro:
+            conexao.close()
+            return render_template(
+                "form_receita.html",
+                titulo="Editar Receita",
+                receita=dados_formulario,
+                categorias=categorias,
+                erro=erro
+            ), 400
+
+        valor = float(valor_informado)
 
         cursor.execute("""
             UPDATE transacoes
-            SET descricao = ?,
+            SET tipo = 'receita',
+                descricao = ?,
                 categoria = ?,
-                valor = ?,
-                data = ?
-            WHERE id = ?
+                valor = ?
+            WHERE id = ? AND tipo = 'receita'
         """, (
             descricao,
             categoria,
             valor,
-            data,
             id
         ))
 
@@ -181,24 +255,19 @@ def editar_receita(id):
         return redirect("/receitas")
 
 
-    cursor.execute(
-        "SELECT * FROM transacoes WHERE id = ?",
-        (id,)
-    )
-
-    receita = cursor.fetchone()
-
     conexao.close()
 
 
     return render_template(
         "form_receita.html",
         titulo="Editar Receita",
-        receita=receita
+        receita=receita,
+        categorias=categorias,
+        erro=None
     )
 
 
-@app.route("/receitas/excluir/<int:id>")
+@app.route("/receitas/excluir/<int:id>", methods=["POST"])
 def excluir_receita(id):
 
     conexao = conectar()
@@ -206,16 +275,44 @@ def excluir_receita(id):
 
 
     cursor.execute(
-        "DELETE FROM transacoes WHERE id = ?",
+        """
+        DELETE FROM transacoes
+        WHERE id = ? AND tipo = 'receita'
+        """,
         (id,)
     )
 
+    excluiu = cursor.rowcount
 
     conexao.commit()
     conexao.close()
 
+    if not excluiu:
+        abort(404)
 
     return redirect("/receitas")
+
+
+def validar_receita(descricao, categoria, valor_informado):
+
+    if not descricao:
+        return "Informe uma descrição para a receita."
+
+    if categoria not in categorias:
+        return "Selecione uma categoria válida."
+
+    if not valor_informado:
+        return "Informe o valor da receita."
+
+    try:
+        valor = float(valor_informado)
+    except ValueError:
+        return "Informe um valor numérico válido."
+
+    if not math.isfinite(valor) or valor <= 0:
+        return "O valor deve ser maior que zero."
+
+    return None
 
 
 
