@@ -2,8 +2,249 @@
 
 {% block conteudo %}
 
-<h1>Relatórios</h1>
+<h1>Relatórios e gráficos</h1>
 
-<p>Em breve serão exibidos relatórios financeiros.</p>
+<form method="GET" action="/relatorios" class="filtros-relatorio">
+
+    <div>
+        <label for="mes">Mês</label>
+        <select id="mes" name="mes" required>
+            {% if erro and mes_selecionado not in
+                ['1', '2', '3', '4', '5', '6',
+                 '7', '8', '9', '10', '11', '12'] %}
+            <option value="{{ mes_selecionado or '' }}" selected>
+                {{ mes_selecionado or 'Selecione' }}
+            </option>
+            {% endif %}
+
+            {% for nome_mes in meses %}
+            <option
+            value="{{ loop.index }}"
+            {% if mes_selecionado == loop.index|string %}selected{% endif %}>
+                {{ nome_mes }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div>
+        <label for="ano">Ano</label>
+        <input
+        id="ano"
+        name="ano"
+        type="number"
+        min="1900"
+        max="2100"
+        value="{{ ano_selecionado or '' }}"
+        required>
+    </div>
+
+    <button type="submit">Aplicar filtro</button>
+
+</form>
+
+{% if erro %}
+
+<p class="mensagem-erro erro-relatorio">{{ erro }}</p>
+
+{% else %}
+
+<p class="periodo-relatorio">
+    Período selecionado: <strong>{{ relatorio["periodo"] }}</strong>
+</p>
+
+<section class="indicadores-relatorio">
+
+    <article class="indicador-relatorio receita">
+        <span>Total de receitas</span>
+        <strong>
+            R$ {{ formatar_moeda(relatorio["resumo"]["receitas"]) }}
+        </strong>
+    </article>
+
+    <article class="indicador-relatorio despesa">
+        <span>Total de despesas</span>
+        <strong>
+            R$ {{ formatar_moeda(relatorio["resumo"]["despesas"]) }}
+        </strong>
+    </article>
+
+    <article class="indicador-relatorio saldo {{ relatorio['resumo']['classe_saldo'] }}">
+        <span>Saldo do período</span>
+        <strong>
+            R$ {{ formatar_moeda(relatorio["resumo"]["saldo"]) }}
+        </strong>
+    </article>
+
+    <article class="indicador-relatorio quantidade">
+        <span>Quantidade de receitas</span>
+        <strong>{{ relatorio["resumo"]["quantidade_receitas"] }}</strong>
+    </article>
+
+    <article class="indicador-relatorio quantidade">
+        <span>Quantidade de despesas</span>
+        <strong>{{ relatorio["resumo"]["quantidade_despesas"] }}</strong>
+    </article>
+
+</section>
+
+{% if not relatorio["tem_movimentacoes"] %}
+
+<div class="estado-vazio estado-vazio-relatorio">
+    <h2>Nenhuma movimentação no período</h2>
+    <p>Escolha outro mês ou cadastre receitas e despesas para analisá-las.</p>
+</div>
+
+{% endif %}
+
+<section class="secao-relatorio">
+
+    <h2>Despesas por categoria</h2>
+
+    {% if relatorio["despesas_categorias"] %}
+
+    <div class="relatorio-duas-colunas">
+
+        <div class="tabela-responsiva">
+            <table class="tabela">
+                <thead>
+                    <tr>
+                        <th>Categoria</th>
+                        <th>Total</th>
+                        <th>Percentual</th>
+                        <th>Lançamentos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for categoria in relatorio["despesas_categorias"] %}
+                    <tr>
+                        <td>{{ categoria["categoria"] }}</td>
+                        <td>R$ {{ formatar_moeda(categoria["total"]) }}</td>
+                        <td>{{ "%.2f"|format(categoria["percentual"]) }}%</td>
+                        <td>{{ categoria["quantidade"] }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="grafico-container">
+            <canvas id="graficoCategorias"></canvas>
+        </div>
+
+    </div>
+
+    {% else %}
+
+    <p class="mensagem-sem-dados">
+        Não há despesas para analisar neste período.
+    </p>
+
+    {% endif %}
+
+</section>
+
+<section class="secao-relatorio">
+    <h2>Evolução financeira — últimos seis meses</h2>
+
+    <div class="grafico-container grafico-evolucao">
+        <canvas id="graficoEvolucao"></canvas>
+    </div>
+</section>
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+
+{% if not erro %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+<script>
+    const formatarReal = (valor) => new Intl.NumberFormat(
+        "pt-BR",
+        { style: "currency", currency: "BRL" }
+    ).format(valor);
+
+    const opcoesComuns = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: (contexto) => {
+                        const rotulo = contexto.dataset.label || "";
+                        return `${rotulo}: ${formatarReal(contexto.raw)}`;
+                    }
+                }
+            }
+        }
+    };
+
+    {% if relatorio["despesas_categorias"] %}
+    const categorias = {{ relatorio["grafico_categorias"] | tojson }};
+
+    new Chart(document.getElementById("graficoCategorias"), {
+        type: "doughnut",
+        data: {
+            labels: categorias.rotulos,
+            datasets: [{
+                label: "Despesas",
+                data: categorias.valores,
+                backgroundColor: [
+                    "#FACC15", "#111111", "#EAB308", "#FDE047",
+                    "#A16207", "#F59E0B", "#713F12", "#FEF08A"
+                ],
+                borderColor: "#ffffff",
+                borderWidth: 2
+            }]
+        },
+        options: opcoesComuns
+    });
+    {% endif %}
+
+    const evolucao = {{ relatorio["evolucao"] | tojson }};
+
+    new Chart(document.getElementById("graficoEvolucao"), {
+        type: "line",
+        data: {
+            labels: evolucao.rotulos,
+            datasets: [
+                {
+                    label: "Receitas",
+                    data: evolucao.receitas,
+                    borderColor: "#16A34A",
+                    backgroundColor: "#16A34A",
+                    tension: 0.25
+                },
+                {
+                    label: "Despesas",
+                    data: evolucao.despesas,
+                    borderColor: "#DC2626",
+                    backgroundColor: "#DC2626",
+                    tension: 0.25
+                },
+                {
+                    label: "Saldo",
+                    data: evolucao.saldos,
+                    borderColor: "#111111",
+                    backgroundColor: "#FACC15",
+                    tension: 0.25
+                }
+            ]
+        },
+        options: {
+            ...opcoesComuns,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: (valor) => formatarReal(valor)
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
 
 {% endblock %}

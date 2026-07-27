@@ -12,6 +12,7 @@ from metas import (
     excluir_meta_por_id,
     listar_metas_mensais
 )
+from relatorios import MESES, preparar_relatorio, validar_periodo
 from transacoes import (
     atualizar_transacao,
     buscar_transacao_por_id_e_tipo,
@@ -462,7 +463,36 @@ def formatar_moeda(valor):
 @app.route("/relatorios")
 def relatorios():
 
-    return render_template("relatorios.html")
+    mes_informado = request.args.get("mes")
+    ano_informado = request.args.get("ano")
+
+    mes, ano, erro = validar_periodo(
+        mes_informado,
+        ano_informado
+    )
+
+    if erro:
+        return render_template(
+            "relatorios.html",
+            relatorio=None,
+            meses=MESES,
+            mes_selecionado=mes_informado,
+            ano_selecionado=ano_informado,
+            erro=erro,
+            formatar_moeda=formatar_moeda
+        ), 400
+
+    relatorio = preparar_relatorio(mes, ano)
+
+    return render_template(
+        "relatorios.html",
+        relatorio=relatorio,
+        meses=MESES,
+        mes_selecionado=str(mes),
+        ano_selecionado=str(ano),
+        erro=None,
+        formatar_moeda=formatar_moeda
+    )
 
 
 if __name__ == "__main__":
