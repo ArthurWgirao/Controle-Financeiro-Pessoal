@@ -9,6 +9,154 @@ from utils import (
 )
 
 
+def buscar_transacoes_por_tipo(tipo):
+
+    conexao = conectar()
+
+    try:
+        cursor = conexao.cursor()
+        cursor.execute(
+            """
+            SELECT id, descricao, categoria, valor, data
+            FROM transacoes
+            WHERE tipo = ?
+            ORDER BY id DESC
+            """,
+            (tipo,)
+        )
+
+        return cursor.fetchall()
+    finally:
+        conexao.close()
+
+
+def buscar_transacao_por_id_e_tipo(id_transacao, tipo):
+
+    conexao = conectar()
+
+    try:
+        cursor = conexao.cursor()
+        cursor.execute(
+            """
+            SELECT id, tipo, valor, categoria, descricao, data
+            FROM transacoes
+            WHERE id = ? AND tipo = ?
+            """,
+            (id_transacao, tipo)
+        )
+
+        return cursor.fetchone()
+    finally:
+        conexao.close()
+
+
+def cadastrar_transacao(tipo, valor, categoria, descricao):
+
+    data = datetime.now().strftime("%d/%m/%Y")
+    conexao = conectar()
+
+    try:
+        cursor = conexao.cursor()
+        cursor.execute(
+            """
+            INSERT INTO transacoes
+            (tipo, valor, categoria, descricao, data)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (tipo, valor, categoria, descricao, data)
+        )
+        conexao.commit()
+
+        return cursor.lastrowid
+    finally:
+        conexao.close()
+
+
+def atualizar_transacao(
+    id_transacao,
+    tipo,
+    valor,
+    categoria,
+    descricao
+):
+
+    conexao = conectar()
+
+    try:
+        cursor = conexao.cursor()
+        cursor.execute(
+            """
+            UPDATE transacoes
+            SET tipo = ?,
+                descricao = ?,
+                categoria = ?,
+                valor = ?
+            WHERE id = ? AND tipo = ?
+            """,
+            (
+                tipo,
+                descricao,
+                categoria,
+                valor,
+                id_transacao,
+                tipo
+            )
+        )
+        conexao.commit()
+
+        return cursor.rowcount > 0
+    finally:
+        conexao.close()
+
+
+def excluir_transacao(id_transacao, tipo):
+
+    conexao = conectar()
+
+    try:
+        cursor = conexao.cursor()
+        cursor.execute(
+            """
+            DELETE FROM transacoes
+            WHERE id = ? AND tipo = ?
+            """,
+            (id_transacao, tipo)
+        )
+        conexao.commit()
+
+        return cursor.rowcount > 0
+    finally:
+        conexao.close()
+
+
+def calcular_resumo():
+
+    conexao = conectar()
+
+    try:
+        cursor = conexao.cursor()
+        cursor.execute(
+            """
+            SELECT tipo, COALESCE(SUM(valor), 0) AS total
+            FROM transacoes
+            WHERE tipo IN ('receita', 'despesa')
+            GROUP BY tipo
+            """
+        )
+
+        totais = {
+            registro["tipo"]: registro["total"]
+            for registro in cursor.fetchall()
+        }
+    finally:
+        conexao.close()
+
+    receitas = totais.get("receita", 0)
+    despesas = totais.get("despesa", 0)
+
+    return receitas, despesas, receitas - despesas
+
+
 # ==================
 # ESCOLHER CATEGORIA
 # ==================
