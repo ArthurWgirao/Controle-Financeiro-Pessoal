@@ -3,6 +3,11 @@ import sqlite3
 CAMINHO_BANCO = "finance.db"
 
 
+def configurar_caminho_banco(caminho):
+    global CAMINHO_BANCO
+    CAMINHO_BANCO = caminho
+
+
 def conectar():
     conexao = sqlite3.connect(CAMINHO_BANCO)
     conexao.row_factory = sqlite3.Row
