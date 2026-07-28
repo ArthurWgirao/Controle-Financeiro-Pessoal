@@ -1,5 +1,6 @@
 import hashlib
 import sqlite3
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -10,6 +11,13 @@ import database
 
 RAIZ_PROJETO = Path(__file__).resolve().parents[1]
 BANCO_REAL = RAIZ_PROJETO / "finance.db"
+
+
+def pytest_configure(config):
+    if config.option.basetemp is None:
+        config.option.basetemp = str(
+            RAIZ_PROJETO / ".pytest_tmp" / uuid.uuid4().hex
+        )
 
 
 def calcular_hash(caminho):
