@@ -1,6 +1,6 @@
 __pycache__/
 *.db
-.pytest_cache/
+.pytest_cache*/
 .pytest_tmp*/
 .coverage
 htmlcov/

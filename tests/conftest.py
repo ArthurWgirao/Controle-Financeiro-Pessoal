@@ -16,7 +16,7 @@ BANCO_REAL = RAIZ_PROJETO / "finance.db"
 def pytest_configure(config):
     if config.option.basetemp is None:
         config.option.basetemp = str(
-            RAIZ_PROJETO / ".pytest_tmp" / uuid.uuid4().hex
+            RAIZ_PROJETO / f".pytest_tmp_{uuid.uuid4().hex}"
         )
 
 
