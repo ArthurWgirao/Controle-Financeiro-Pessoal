@@ -1,174 +1,119 @@
-from database import conectar
-from transacoes import escolher_categoria
+from datetime import date, datetime
+from decimal import Decimal
 
-from utils import (
-    ler_float,
-    ler_int
-)
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
+
+from extensions import db
+from models import Meta, Transacao
+from transacoes import escolher_categoria
+from utils import ler_float, ler_int
+
+
+def _confirmar():
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+
+def _limites_periodo(mes_referencia):
+    referencia = datetime.strptime(mes_referencia, "%m/%Y")
+    inicio = date(referencia.year, referencia.month, 1)
+    fim = (
+        date(referencia.year + 1, 1, 1)
+        if referencia.month == 12
+        else date(referencia.year, referencia.month + 1, 1)
+    )
+    return inicio, fim
 
 
 def listar_metas_mensais(mes_referencia):
-
-    conexao = conectar()
-
-    try:
-        cursor = conexao.cursor()
-        cursor.execute(
-            """
-            SELECT
-                m.id,
-                m.categoria,
-                m.limite,
-                COALESCE(SUM(t.valor), 0) AS gasto
-            FROM metas AS m
-            LEFT JOIN transacoes AS t
-                ON t.categoria = m.categoria
-                AND t.tipo = 'despesa'
-                AND substr(t.data, 4, 7) = ?
-            GROUP BY m.id, m.categoria, m.limite
-            ORDER BY m.categoria
-            """,
-            (mes_referencia,)
+    inicio, fim = _limites_periodo(mes_referencia)
+    gasto = (
+        select(
+            Transacao.categoria.label("categoria"),
+            func.sum(Transacao.valor).label("total")
         )
-
-        registros = cursor.fetchall()
-    finally:
-        conexao.close()
-
-    return [
-        calcular_dados_meta(registro, registro["gasto"])
-        for registro in registros
-    ]
+        .where(
+            Transacao.tipo == "despesa",
+            Transacao.data >= inicio,
+            Transacao.data < fim
+        )
+        .group_by(Transacao.categoria)
+        .subquery()
+    )
+    registros = db.session.execute(
+        select(Meta, func.coalesce(gasto.c.total, Decimal("0.00")))
+        .outerjoin(gasto, gasto.c.categoria == Meta.categoria)
+        .order_by(Meta.categoria)
+    ).all()
+    return [calcular_dados_meta(meta, total) for meta, total in registros]
 
 
 def buscar_meta_por_id(id_meta):
-
-    conexao = conectar()
-
-    try:
-        cursor = conexao.cursor()
-        cursor.execute(
-            "SELECT id, categoria, limite FROM metas WHERE id = ?",
-            (id_meta,)
-        )
-
-        return cursor.fetchone()
-    finally:
-        conexao.close()
+    return db.session.get(Meta, id_meta)
 
 
 def categoria_possui_meta(categoria):
-
-    conexao = conectar()
-
-    try:
-        cursor = conexao.cursor()
-        cursor.execute(
-            "SELECT id FROM metas WHERE categoria = ?",
-            (categoria,)
-        )
-
-        return cursor.fetchone() is not None
-    finally:
-        conexao.close()
+    return db.session.scalar(
+        select(Meta.id).where(Meta.categoria == categoria)
+    ) is not None
 
 
 def cadastrar_meta(categoria, limite):
-
-    conexao = conectar()
-
+    meta = Meta(categoria=categoria, limite=limite)
+    db.session.add(meta)
     try:
-        cursor = conexao.cursor()
-        cursor.execute(
-            """
-            INSERT INTO metas (categoria, limite)
-            VALUES (?, ?)
-            """,
-            (categoria, limite)
-        )
-        conexao.commit()
-
-        return cursor.lastrowid
-    finally:
-        conexao.close()
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        raise
+    return meta.id
 
 
 def atualizar_limite_meta(id_meta, limite):
-
-    conexao = conectar()
-
-    try:
-        cursor = conexao.cursor()
-        cursor.execute(
-            """
-            UPDATE metas
-            SET limite = ?
-            WHERE id = ?
-            """,
-            (limite, id_meta)
-        )
-        conexao.commit()
-
-        return cursor.rowcount > 0
-    finally:
-        conexao.close()
+    meta = buscar_meta_por_id(id_meta)
+    if meta is None:
+        return False
+    meta.limite = limite
+    _confirmar()
+    return True
 
 
 def excluir_meta_por_id(id_meta):
-
-    conexao = conectar()
-
-    try:
-        cursor = conexao.cursor()
-        cursor.execute(
-            "DELETE FROM metas WHERE id = ?",
-            (id_meta,)
-        )
-        conexao.commit()
-
-        return cursor.rowcount > 0
-    finally:
-        conexao.close()
+    meta = buscar_meta_por_id(id_meta)
+    if meta is None:
+        return False
+    db.session.delete(meta)
+    _confirmar()
+    return True
 
 
 def calcular_gasto_mensal_por_categoria(categoria, mes_referencia):
-
-    conexao = conectar()
-
-    try:
-        cursor = conexao.cursor()
-        cursor.execute(
-            """
-            SELECT COALESCE(SUM(valor), 0)
-            FROM transacoes
-            WHERE categoria = ?
-                AND tipo = 'despesa'
-                AND substr(data, 4, 7) = ?
-            """,
-            (categoria, mes_referencia)
+    inicio, fim = _limites_periodo(mes_referencia)
+    return db.session.scalar(
+        select(func.coalesce(func.sum(Transacao.valor), Decimal("0.00")))
+        .where(
+            Transacao.categoria == categoria,
+            Transacao.tipo == "despesa",
+            Transacao.data >= inicio,
+            Transacao.data < fim
         )
-
-        return cursor.fetchone()[0]
-    finally:
-        conexao.close()
+    )
 
 
 def calcular_dados_meta(meta, gasto):
-
     limite = meta["limite"]
     restante = limite - gasto
-    percentual = (gasto / limite) * 100 if limite > 0 else 0
-
+    percentual = (gasto / limite) * 100 if limite > 0 else Decimal("0")
     if percentual >= 100:
-        situacao = "Meta ultrapassada"
-        classe_situacao = "ultrapassada"
+        situacao, classe = "Meta ultrapassada", "ultrapassada"
     elif percentual >= 80:
-        situacao = "Atenção"
-        classe_situacao = "atencao"
+        situacao, classe = "Atenção", "atencao"
     else:
-        situacao = "Dentro da meta"
-        classe_situacao = "dentro"
-
+        situacao, classe = "Dentro da meta", "dentro"
     return {
         "id": meta["id"],
         "categoria": meta["categoria"],
@@ -176,313 +121,85 @@ def calcular_dados_meta(meta, gasto):
         "gasto": gasto,
         "restante": restante,
         "percentual": percentual,
-        "largura_barra": min(percentual, 100),
+        "largura_barra": min(percentual, Decimal("100")),
         "situacao": situacao,
-        "classe_situacao": classe_situacao
+        "classe_situacao": classe
     }
 
 
-# =========================
-# ADICIONAR / ATUALIZAR META
-# =========================
+def _listar_metas():
+    return db.session.scalars(select(Meta).order_by(Meta.id)).all()
+
 
 def adicionar_meta():
-
     categoria = escolher_categoria()
-
-    limite = ler_float(
-        "Digite o limite de gastos: "
-    )
-
-    conexao = conectar()
-    cursor = conexao.cursor()
-
-    # Verifica se já existe meta
-    cursor.execute(
-        """
-        SELECT id
-        FROM metas
-        WHERE categoria = ?
-        """,
-        (categoria,)
-    )
-
-    meta_existente = cursor.fetchone()
-
-    # Atualiza meta existente
-    if meta_existente:
-
-        cursor.execute(
-            """
-            UPDATE metas
-
-            SET limite = ?
-
-            WHERE categoria = ?
-            """,
-            (limite, categoria)
-        )
-
+    limite = Decimal(str(ler_float("Digite o limite de gastos: ")))
+    meta = db.session.scalar(select(Meta).where(Meta.categoria == categoria))
+    if meta:
+        meta.limite = limite
+        _confirmar()
         print("Meta atualizada!")
-
-    # Cria nova meta
     else:
-
-        cursor.execute(
-            """
-            INSERT INTO metas (
-                categoria,
-                limite
-            )
-
-            VALUES (?, ?)
-            """,
-            (categoria, limite)
-        )
-
+        cadastrar_meta(categoria, limite)
         print("Meta criada!")
 
-    conexao.commit()
-    conexao.close()
-
-
-# =========================
-# LISTAR METAS
-# =========================
 
 def listar_metas():
-
-    conexao = conectar()
-    cursor = conexao.cursor()
-
-    cursor.execute("""
-    SELECT * FROM metas
-    """)
-
-    metas = cursor.fetchall()
-
-    conexao.close()
-
-    if len(metas) == 0:
-
+    metas = _listar_metas()
+    if not metas:
         print("Nenhuma meta cadastrada.")
         return
-
     print("\n===== METAS =====")
-
     for indice, meta in enumerate(metas):
+        print(f"{indice} - {meta.categoria} | Limite: R$ {meta.limite:.2f}")
 
-        print(
-            f"{indice} - "
-            f"{meta[1]} | "
-            f"Limite: R$ {meta[2]:.2f}"
-        )
-
-
-# =========================
-# REMOVER META
-# =========================
 
 def remover_meta():
-
-    conexao = conectar()
-    cursor = conexao.cursor()
-
-    cursor.execute("""
-    SELECT * FROM metas
-    """)
-
-    metas = cursor.fetchall()
-
-    if len(metas) == 0:
-
+    metas = _listar_metas()
+    if not metas:
         print("Nenhuma meta cadastrada.")
-        conexao.close()
         return
-
     listar_metas()
-
-    indice_visual = ler_int(
-        "\nDigite o índice da meta: "
-    )
-
-    if 0 <= indice_visual < len(metas):
-
-        meta = metas[indice_visual]
-
-        id_real = meta[0]
-
-        cursor.execute(
-            """
-            DELETE FROM metas
-            WHERE id = ?
-            """,
-            (id_real,)
-        )
-
-        conexao.commit()
-
+    indice = ler_int("\nDigite o índice da meta: ")
+    if 0 <= indice < len(metas):
+        excluir_meta_por_id(metas[indice].id)
         print("Meta removida!")
-
     else:
-
         print("Índice inválido!")
 
-    conexao.close()
-
-
-# =========================
-# EDITAR META
-# =========================
 
 def editar_meta():
-
-    conexao = conectar()
-    cursor = conexao.cursor()
-
-    cursor.execute("""
-    SELECT * FROM metas
-    """)
-
-    metas = cursor.fetchall()
-
-    if len(metas) == 0:
-
+    metas = _listar_metas()
+    if not metas:
         print("Nenhuma meta cadastrada.")
-        conexao.close()
         return
-
     listar_metas()
-
-    indice_visual = ler_int(
-        "\nDigite o índice da meta: "
-    )
-
-    if 0 <= indice_visual < len(metas):
-
-        meta = metas[indice_visual]
-
-        id_real = meta[0]
-
-        print(
-            "\nPressione ENTER "
-            "para não alterar.\n"
-        )
-
-        novo_limite = input(
-            f"Novo limite ({meta[2]}): "
-        ).strip()
-
-        limite = meta[2]
-
-        if novo_limite != "":
-
-            limite = float(novo_limite)
-
-        alterar_categoria = input(
-            "Deseja alterar categoria? (s/n): "
-        ).lower()
-
-        categoria = meta[1]
-
-        if alterar_categoria == "s":
-
-            categoria = escolher_categoria()
-
-        cursor.execute(
-            """
-            UPDATE metas
-
-            SET categoria = ?,
-                limite = ?
-
-            WHERE id = ?
-            """,
-            (
-                categoria,
-                limite,
-                id_real
-            )
-        )
-
-        conexao.commit()
-
-        print("Meta atualizada!")
-
-    else:
-
+    indice = ler_int("\nDigite o índice da meta: ")
+    if not 0 <= indice < len(metas):
         print("Índice inválido!")
+        return
+    meta = metas[indice]
+    novo_limite = input(f"Novo limite ({meta.limite}): ").strip()
+    if novo_limite:
+        meta.limite = Decimal(novo_limite)
+    if input("Deseja alterar categoria? (s/n): ").lower() == "s":
+        meta.categoria = escolher_categoria()
+    _confirmar()
+    print("Meta atualizada!")
 
-    conexao.close()
-
-
-# =========================
-# VERIFICAR METAS
-# =========================
 
 def verificar_metas():
-
-    conexao = conectar()
-    cursor = conexao.cursor()
-
-    cursor.execute("""
-    SELECT categoria, limite
-    FROM metas
-    """)
-
-    metas = cursor.fetchall()
-
-    if len(metas) == 0:
-
+    mes = date.today().strftime("%m/%Y")
+    metas = listar_metas_mensais(mes)
+    if not metas:
         print("Nenhuma meta cadastrada.")
-        conexao.close()
         return
-
     for meta in metas:
-
-        categoria = meta[0]
-        limite = meta[1]
-
-        cursor.execute(
-            """
-            SELECT SUM(valor)
-
-            FROM transacoes
-
-            WHERE categoria = ?
-            AND tipo = 'despesa'
-            """,
-            (categoria,)
-        )
-
-        total = cursor.fetchone()[0]
-
-        if total is None:
-
-            total = 0
-
-        print(f"\nCategoria: {categoria}")
-
+        print(f"\nCategoria: {meta['categoria']}")
+        print(f"Limite: R$ {meta['limite']:.2f}")
+        print(f"Gasto atual: R$ {meta['gasto']:.2f}")
         print(
-            f"Limite: "
-            f"R$ {limite:.2f}"
+            "⚠️ LIMITE ULTRAPASSADO!"
+            if meta["gasto"] > meta["limite"]
+            else "✅ Dentro do limite"
         )
-
-        print(
-            f"Gasto atual: "
-            f"R$ {total:.2f}"
-        )
-
-        if total > limite:
-
-            print(
-                "⚠️ LIMITE ULTRAPASSADO!"
-            )
-
-        else:
-
-            print(
-                "✅ Dentro do limite"
-            )
-
-    conexao.close()

@@ -1,5 +1,3 @@
-from database import criar_tabela
-
 from transacoes import (
     add_receita,
     add_despesa,
@@ -52,9 +50,6 @@ def menu():
 
 
 def main():
-
-    criar_tabela()
-
     opcoes = {
         "1": add_receita,
         "2": add_despesa,
@@ -90,4 +85,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from app import create_app
+
+    aplicacao = create_app()
+    with aplicacao.app_context():
+        main()

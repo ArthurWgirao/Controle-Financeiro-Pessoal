@@ -1,4 +1,5 @@
 import math
+from decimal import Decimal
 
 import pytest
 
@@ -12,7 +13,12 @@ from validacoes import (
 
 @pytest.mark.parametrize(
     ("entrada", "esperado"),
-    [(1, 1.0), (1.25, 1.25), ("2.50", 2.5)]
+    [
+        (1, Decimal("1.00")),
+        (1.25, Decimal("1.25")),
+        ("2.50", Decimal("2.50")),
+        ("9999999999.99", Decimal("9999999999.99"))
+    ]
 )
 def test_numero_positivo_valido(entrada, esperado):
     valor, erro = validar_numero_positivo(
@@ -21,7 +27,7 @@ def test_numero_positivo_valido(entrada, esperado):
         "inválido",
         "positivo"
     )
-    assert valor == pytest.approx(esperado)
+    assert valor == esperado
     assert erro is None
 
 
@@ -32,9 +38,9 @@ def test_numero_positivo_valido(entrada, esperado):
         ("0", "positivo"),
         ("-1", "positivo"),
         ("texto", "inválido"),
-        ("inf", "positivo"),
-        ("-inf", "positivo"),
-        ("NaN", "positivo")
+        ("inf", "inválido"),
+        ("-inf", "inválido"),
+        ("NaN", "inválido")
     ]
 )
 def test_numero_positivo_invalido(entrada, mensagem):
@@ -110,4 +116,19 @@ def test_nan_real_tambem_e_rejeitado():
         "positivo"
     )
     assert valor is None
-    assert erro == "positivo"
+    assert erro == "inválido"
+
+
+@pytest.mark.parametrize("entrada", ["10.999", "9999999999.999", "10000000000"])
+def test_numero_rejeita_excesso_de_escala_ou_precisao(entrada):
+    valor, erro = validar_numero_positivo(
+        entrada, "obrigatório", "inválido", "positivo"
+    )
+    assert valor is None
+    assert erro
+
+
+def test_decimal_nao_acumula_erro_binario():
+    primeiro, _ = validar_limite_meta("0.10")
+    segundo, _ = validar_limite_meta("0.20")
+    assert primeiro + segundo == Decimal("0.30")

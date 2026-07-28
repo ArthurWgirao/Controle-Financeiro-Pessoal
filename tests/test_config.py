@@ -3,12 +3,13 @@ import importlib
 import pytest
 from flask import Flask
 
-import database
 from config import CHAVE_DESENVOLVIMENTO
 
 
 def limpar_ambiente(monkeypatch):
-    for nome in ["APP_ENV", "SECRET_KEY", "DATABASE_PATH"]:
+    for nome in [
+        "APP_ENV", "SECRET_KEY", "DATABASE_PATH", "DATABASE_URL"
+    ]:
         monkeypatch.delenv(nome, raising=False)
 
 
@@ -59,7 +60,9 @@ def test_dicionario_sobrescreve_ambiente(monkeypatch, tmp_path):
     assert aplicacao.testing is False
     assert aplicacao.secret_key == "chave-do-dicionario"
     assert aplicacao.config["DATABASE_PATH"] == str(caminho)
-    assert database.CAMINHO_BANCO == str(caminho)
+    assert str(caminho.resolve()) in str(
+        aplicacao.config["SQLALCHEMY_DATABASE_URI"]
+    )
 
 
 def test_variaveis_de_ambiente_sao_aplicadas(monkeypatch, tmp_path):
@@ -130,7 +133,7 @@ def test_factory_nao_cria_banco_antes_do_request(
     assert not caminho.exists()
 
 
-def test_primeiro_request_inicializa_banco(monkeypatch, tmp_path):
+def test_primeiro_request_exige_migracao_previa(monkeypatch, tmp_path):
     limpar_ambiente(monkeypatch)
     from app import create_app
 
@@ -140,8 +143,12 @@ def test_primeiro_request_inicializa_banco(monkeypatch, tmp_path):
         "SECRET_KEY": "teste",
         "DATABASE_PATH": str(caminho)
     })
-    assert aplicacao.test_client().get("/").status_code == 200
-    assert caminho.exists()
+    with pytest.raises(Exception, match="no such table"):
+        aplicacao.test_client().get("/")
+    from extensions import db
+    with aplicacao.app_context():
+        db.session.remove()
+        db.engine.dispose()
 
 
 def test_duas_instancias_sao_independentes(monkeypatch, tmp_path):
@@ -161,8 +168,14 @@ def test_duas_instancias_sao_independentes(monkeypatch, tmp_path):
     assert primeira is not segunda
     assert primeira.secret_key == "primeira"
     assert segunda.secret_key == "segunda"
-    assert primeira.test_client().get("/").status_code == 200
-    assert segunda.test_client().get("/").status_code == 200
+    from extensions import db
+    for aplicacao in (primeira, segunda):
+        with aplicacao.app_context():
+            db.create_all()
+        assert aplicacao.test_client().get("/").status_code == 200
+        with aplicacao.app_context():
+            db.session.remove()
+            db.engine.dispose()
     assert caminho_primeira.exists()
     assert caminho_segunda.exists()
 

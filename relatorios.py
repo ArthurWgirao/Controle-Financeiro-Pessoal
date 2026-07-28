@@ -1,6 +1,10 @@
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 
-from database import conectar
+from sqlalchemy import select
+
+from extensions import db
+from models import Transacao
 
 
 MESES = [
@@ -87,45 +91,32 @@ def gerar_seis_periodos(mes, ano):
     return periodos
 
 
-def buscar_movimentacoes_reconhecidas():
+def buscar_movimentacoes_reconhecidas(data_inicio=None, data_fim=None):
+    consulta = select(Transacao).where(
+        Transacao.tipo.in_(("receita", "despesa"))
+    )
+    if data_inicio is not None:
+        consulta = consulta.where(Transacao.data >= data_inicio)
+    if data_fim is not None:
+        consulta = consulta.where(Transacao.data < data_fim)
 
-    conexao = conectar()
-
-    try:
-        cursor = conexao.cursor()
-        cursor.execute(
-            """
-            SELECT tipo, valor, categoria, data
-            FROM transacoes
-            WHERE tipo IN (?, ?)
-            """,
-            ("receita", "despesa")
-        )
-
-        registros = cursor.fetchall()
-    finally:
-        conexao.close()
-
-    movimentacoes = []
-
-    for registro in registros:
-        data = converter_data(registro["data"])
-
-        if data is None:
-            continue
-
-        movimentacoes.append({
-            "tipo": registro["tipo"],
-            "valor": registro["valor"],
-            "categoria": registro["categoria"],
-            "data": data
-        })
-
-    return movimentacoes
+    return [
+        {
+            "tipo": registro.tipo,
+            "valor": registro.valor,
+            "categoria": registro.categoria,
+            "data": registro.data
+        }
+        for registro in db.session.scalars(consulta)
+    ]
 
 
 def converter_data(data_informada):
 
+    if isinstance(data_informada, datetime):
+        return data_informada
+    if isinstance(data_informada, date):
+        return datetime.combine(data_informada, datetime.min.time())
     if not isinstance(data_informada, str):
         return None
 
@@ -144,8 +135,8 @@ def converter_data(data_informada):
 
 def obter_resumo_periodo(movimentacoes, mes, ano):
 
-    receitas = 0
-    despesas = 0
+    receitas = Decimal("0.00")
+    despesas = Decimal("0.00")
     quantidade_receitas = 0
     quantidade_despesas = 0
 
@@ -199,7 +190,7 @@ def obter_despesas_por_categoria(movimentacoes, mes, ano):
         if categoria not in agrupamento:
             agrupamento[categoria] = {
                 "categoria": categoria,
-                "total": 0,
+                "total": Decimal("0.00"),
                 "quantidade": 0
             }
 
@@ -217,12 +208,12 @@ def obter_despesas_por_categoria(movimentacoes, mes, ano):
         percentual = (
             (item["total"] / total_despesas) * 100
             if total_despesas > 0
-            else 0
+        else Decimal("0")
         )
 
         categorias.append({
             **item,
-            "percentual": percentual
+            "percentual": float(percentual)
         })
 
     return sorted(
@@ -237,8 +228,8 @@ def obter_evolucao_mensal(movimentacoes, mes, ano):
     periodos = gerar_seis_periodos(mes, ano)
     totais = {
         (periodo["mes"], periodo["ano"]): {
-            "receitas": 0,
-            "despesas": 0
+            "receitas": Decimal("0.00"),
+            "despesas": Decimal("0.00")
         }
         for periodo in periodos
     }
@@ -277,7 +268,18 @@ def obter_evolucao_mensal(movimentacoes, mes, ano):
 
 def preparar_relatorio(mes, ano):
 
-    movimentacoes = buscar_movimentacoes_reconhecidas()
+    periodos = gerar_seis_periodos(mes, ano)
+    primeiro = periodos[0]
+    data_inicio = date(primeiro["ano"], primeiro["mes"], 1)
+    data_fim = (
+        date(ano + 1, 1, 1)
+        if mes == 12
+        else date(ano, mes + 1, 1)
+    )
+    movimentacoes = buscar_movimentacoes_reconhecidas(
+        data_inicio,
+        data_fim
+    )
     resumo = obter_resumo_periodo(movimentacoes, mes, ano)
     despesas_categorias = obter_despesas_por_categoria(
         movimentacoes,
@@ -298,11 +300,16 @@ def preparar_relatorio(mes, ano):
                 for item in despesas_categorias
             ],
             "valores": [
-                item["total"]
+                float(item["total"])
                 for item in despesas_categorias
             ]
         },
-        "evolucao": evolucao,
+        "evolucao": {
+            "rotulos": evolucao["rotulos"],
+            "receitas": [float(valor) for valor in evolucao["receitas"]],
+            "despesas": [float(valor) for valor in evolucao["despesas"]],
+            "saldos": [float(valor) for valor in evolucao["saldos"]]
+        },
         "tem_movimentacoes": (
             resumo["quantidade_receitas"]
             + resumo["quantidade_despesas"]
