@@ -127,11 +127,21 @@ def data_mes_anterior():
 
 
 @pytest.fixture
-def aplicacao(caminho_banco):
-    import app
+def aplicacao(caminho_banco, monkeypatch):
+    monkeypatch.setenv("APP_ENV", "testing")
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.delenv("DATABASE_PATH", raising=False)
 
-    app.app.config.update(TESTING=True)
-    return app.app
+    from app import create_app
+
+    aplicacao_teste = create_app({
+        "TESTING": True,
+        "SECRET_KEY": "chave-fixa-da-fixture-de-testes",
+        "DATABASE_PATH": str(caminho_banco)
+    })
+    database.criar_tabela()
+
+    return aplicacao_teste
 
 
 @pytest.fixture
