@@ -8,11 +8,12 @@ load_dotenv(override=False)
 from categorias import categorias
 from config import (
     aplicar_variaveis_ambiente,
+    configurar_uri_banco,
     obter_ambiente,
     obter_classe_configuracao,
     validar_configuracao_producao
 )
-from database import configurar_caminho_banco, criar_tabela
+from extensions import db, migrate
 from metas import (
     atualizar_limite_meta,
     buscar_meta_por_id,
@@ -549,25 +550,17 @@ def create_app(configuracao=None):
     if configuracao:
         aplicacao.config.update(configuracao)
 
+    configurar_uri_banco(aplicacao.config, configuracao)
+
     if ambiente == "production":
         validar_configuracao_producao(aplicacao.config)
 
-    configurar_caminho_banco(aplicacao.config["DATABASE_PATH"])
+    db.init_app(aplicacao)
+    migrate.init_app(aplicacao, db)
+
+    import models
+
     registrar_rotas(aplicacao)
-
-    banco_inicializado = False
-
-    @aplicacao.before_request
-    def inicializar_banco():
-        nonlocal banco_inicializado
-
-        configurar_caminho_banco(
-            aplicacao.config["DATABASE_PATH"]
-        )
-
-        if not banco_inicializado:
-            criar_tabela()
-            banco_inicializado = True
 
     return aplicacao
 

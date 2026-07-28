@@ -18,7 +18,7 @@ def test_cadastra_e_busca_transacoes_por_tipo(caminho_banco):
 
     assert [item["id"] for item in receitas] == [receita_id]
     assert [item["id"] for item in despesas] == [despesa_id]
-    assert receitas[0]["data"] == datetime.now().strftime("%d/%m/%Y")
+    assert receitas[0]["data"] == datetime.now().date()
 
 
 def test_busca_ordenada_por_id_decrescente(caminho_banco):

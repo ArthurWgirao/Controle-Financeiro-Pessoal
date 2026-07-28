@@ -6,11 +6,13 @@ from pathlib import Path
 
 import pytest
 
-import database
+from extensions import db
+from models import Meta, Transacao
 
 
 RAIZ_PROJETO = Path(__file__).resolve().parents[1]
 BANCO_REAL = RAIZ_PROJETO / "finance.db"
+APLICACOES_TEMPORARIAS = {}
 
 
 def pytest_configure(config):
@@ -45,9 +47,24 @@ def proteger_banco_real():
 @pytest.fixture
 def caminho_banco(tmp_path, monkeypatch):
     caminho = tmp_path / "teste.db"
-    monkeypatch.setattr(database, "CAMINHO_BANCO", str(caminho))
-    database.criar_tabela()
-    return caminho
+    monkeypatch.setenv("APP_ENV", "testing")
+    from app import create_app
+
+    aplicacao = create_app({
+        "TESTING": True,
+        "SECRET_KEY": "chave-fixa-da-fixture-de-testes",
+        "DATABASE_PATH": str(caminho)
+    })
+    contexto = aplicacao.app_context()
+    contexto.push()
+    db.create_all()
+    APLICACOES_TEMPORARIAS[str(caminho)] = aplicacao
+    yield caminho
+    db.session.remove()
+    db.drop_all()
+    db.engine.dispose()
+    APLICACOES_TEMPORARIAS.pop(str(caminho), None)
+    contexto.pop()
 
 
 @pytest.fixture
@@ -56,7 +73,20 @@ def conexao_banco(caminho_banco):
         conexao = sqlite3.connect(caminho_banco)
         conexao.row_factory = sqlite3.Row
         try:
-            return conexao.execute(sql, parametros).fetchall()
+            registros = conexao.execute(sql, parametros).fetchall()
+            resultado = []
+            for registro in registros:
+                item = dict(registro)
+                data = item.get("data")
+                if data:
+                    try:
+                        item["data"] = datetime.strptime(
+                            data, "%Y-%m-%d"
+                        ).strftime("%d/%m/%Y")
+                    except ValueError:
+                        pass
+                resultado.append(item)
+            return resultado
         finally:
             conexao.close()
 
@@ -73,20 +103,16 @@ def inserir_transacao(caminho_banco):
         data=None
     ):
         data = data or datetime.now().strftime("%d/%m/%Y")
-        conexao = sqlite3.connect(caminho_banco)
-        try:
-            cursor = conexao.execute(
-                """
-                INSERT INTO transacoes
-                (tipo, valor, categoria, descricao, data)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (tipo, valor, categoria, descricao, data)
-            )
-            conexao.commit()
-            return cursor.lastrowid
-        finally:
-            conexao.close()
+        transacao = Transacao(
+            tipo=tipo,
+            valor=valor,
+            categoria=categoria,
+            descricao=descricao,
+            data=datetime.strptime(data, "%d/%m/%Y").date()
+        )
+        db.session.add(transacao)
+        db.session.commit()
+        return transacao.id
 
     return inserir
 
@@ -110,16 +136,10 @@ def inserir_despesa(inserir_transacao):
 @pytest.fixture
 def inserir_meta(caminho_banco):
     def inserir(categoria="Comida", limite=100):
-        conexao = sqlite3.connect(caminho_banco)
-        try:
-            cursor = conexao.execute(
-                "INSERT INTO metas (categoria, limite) VALUES (?, ?)",
-                (categoria, limite)
-            )
-            conexao.commit()
-            return cursor.lastrowid
-        finally:
-            conexao.close()
+        meta = Meta(categoria=categoria, limite=limite)
+        db.session.add(meta)
+        db.session.commit()
+        return meta.id
 
     return inserir
 
@@ -136,20 +156,7 @@ def data_mes_anterior():
 
 @pytest.fixture
 def aplicacao(caminho_banco, monkeypatch):
-    monkeypatch.setenv("APP_ENV", "testing")
-    monkeypatch.delenv("SECRET_KEY", raising=False)
-    monkeypatch.delenv("DATABASE_PATH", raising=False)
-
-    from app import create_app
-
-    aplicacao_teste = create_app({
-        "TESTING": True,
-        "SECRET_KEY": "chave-fixa-da-fixture-de-testes",
-        "DATABASE_PATH": str(caminho_banco)
-    })
-    database.criar_tabela()
-
-    return aplicacao_teste
+    return APLICACOES_TEMPORARIAS[str(caminho_banco)]
 
 
 @pytest.fixture

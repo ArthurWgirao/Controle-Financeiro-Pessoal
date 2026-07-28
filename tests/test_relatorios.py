@@ -46,7 +46,7 @@ def test_rota_sem_parametros_usa_periodo_atual(cliente):
     assert str(datetime.now().year) in html
 
 
-def test_resumo_ignora_tipo_desconhecido_e_data_invalida(
+def test_resumo_ignora_tipo_desconhecido(
     inserir_transacao
 ):
     inserir_transacao(
@@ -57,9 +57,6 @@ def test_resumo_ignora_tipo_desconhecido_e_data_invalida(
     )
     inserir_transacao(
         tipo="outro", valor=999, data="03/07/2026"
-    )
-    inserir_transacao(
-        tipo="receita", valor=999, data="99/07/2026"
     )
 
     resumo = relatorios.preparar_relatorio(7, 2026)["resumo"]
@@ -196,7 +193,7 @@ def test_estado_vazio_mantem_apenas_grafico_de_evolucao(cliente):
     assert "Nenhuma movimentação" in html
     assert 'id="graficoCategorias"' not in html
     assert 'id="graficoEvolucao"' in html
-    assert "[0, 0, 0, 0, 0, 0]" in html
+    assert "[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]" in html
 
 
 def test_template_usa_tojson_e_chart_apenas_em_relatorios():

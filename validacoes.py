@@ -1,4 +1,7 @@
-import math
+from decimal import Decimal, InvalidOperation
+
+
+VALOR_MAXIMO = Decimal("9999999999.99")
 
 
 def validar_numero_positivo(
@@ -7,19 +10,27 @@ def validar_numero_positivo(
     mensagem_invalido,
     mensagem_positivo
 ):
-
-    if not valor_informado:
+    if valor_informado is None or str(valor_informado).strip() == "":
         return None, mensagem_obrigatorio
 
     try:
-        valor = float(valor_informado)
-    except ValueError:
+        valor = Decimal(str(valor_informado).strip())
+    except (InvalidOperation, ValueError):
         return None, mensagem_invalido
 
-    if not math.isfinite(valor) or valor <= 0:
+    if not valor.is_finite():
+        return None, mensagem_invalido
+
+    if valor <= 0:
         return None, mensagem_positivo
 
-    return valor, None
+    if valor.as_tuple().exponent < -2:
+        return None, "Use no máximo duas casas decimais."
+
+    if valor > VALOR_MAXIMO:
+        return None, "O valor informado é muito alto."
+
+    return valor.quantize(Decimal("0.01")), None
 
 
 def validar_transacao(
@@ -29,7 +40,6 @@ def validar_transacao(
     categorias_permitidas,
     tipo
 ):
-
     if not descricao:
         return None, f"Informe uma descrição para a {tipo}."
 
@@ -45,7 +55,6 @@ def validar_transacao(
 
 
 def validar_meta(categoria, limite_informado, categorias_permitidas):
-
     if categoria not in categorias_permitidas:
         return None, "Selecione uma categoria válida."
 
@@ -53,7 +62,6 @@ def validar_meta(categoria, limite_informado, categorias_permitidas):
 
 
 def validar_limite_meta(limite_informado):
-
     return validar_numero_positivo(
         limite_informado,
         "Informe o limite mensal.",

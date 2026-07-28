@@ -77,7 +77,8 @@ def test_sintaxe_de_todos_os_arquivos_python():
 
 def test_modulos_importam_sem_ciclo():
     for nome in [
-        "database",
+        "extensions",
+        "models",
         "validacoes",
         "transacoes",
         "metas",
