@@ -1,8 +1,9 @@
 import hashlib
 import sqlite3
-import uuid
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -18,7 +19,8 @@ APLICACOES_TEMPORARIAS = {}
 def pytest_configure(config):
     if config.option.basetemp is None:
         config.option.basetemp = str(
-            RAIZ_PROJETO / f".pytest_tmp_{uuid.uuid4().hex}"
+            Path(tempfile.gettempdir())
+            / f"controle_financeiro_pytest_{uuid4().hex}"
         )
 
 
