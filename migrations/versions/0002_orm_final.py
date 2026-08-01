@@ -7,7 +7,7 @@ Revises: 0001_legacy
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 
@@ -17,6 +17,14 @@ branch_labels = None
 depends_on = None
 
 MAXIMO = Decimal("9999999999.99")
+TIPOS_RECONHECIDOS = {"receita", "despesa"}
+
+
+def _simular_falha(ponto):
+    """Permite testar recuperação sem afetar execuções normais."""
+    argumentos = context.get_x_argument(as_dictionary=True)
+    if argumentos.get("falhar_em") == ponto:
+        raise RuntimeError(f"Falha simulada da migração: {ponto}")
 
 
 def _decimal_valido(valor, tabela, identificador, coluna):
@@ -71,6 +79,11 @@ def _validar_legado(conexao):
                 raise ValueError(
                     f"transacoes id={item['id']}: {coluna} não pode ser nulo"
                 )
+        if item["tipo"] not in TIPOS_RECONHECIDOS:
+            raise ValueError(
+                f"transacoes id={item['id']}: tipo desconhecido "
+                f"({item['tipo']!r})"
+            )
         convertidas.append({
             "id": item["id"],
             "tipo": item["tipo"],
@@ -108,6 +121,7 @@ def _validar_legado(conexao):
 def upgrade():
     conexao = op.get_bind()
     transacoes, metas = _validar_legado(conexao)
+    _simular_falha("apos_validacao")
 
     nova_transacao = op.create_table(
         "_transacoes_orm",
@@ -119,6 +133,7 @@ def upgrade():
         sa.Column("data", sa.Date(), nullable=False),
         sqlite_autoincrement=True
     )
+    _simular_falha("apos_criar_transacoes")
     nova_meta = op.create_table(
         "_metas_orm",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -127,10 +142,13 @@ def upgrade():
         sa.UniqueConstraint("categoria", name="uq_metas_categoria"),
         sqlite_autoincrement=True
     )
+    _simular_falha("apos_criar_temporarias")
     if transacoes:
         conexao.execute(nova_transacao.insert(), transacoes)
+    _simular_falha("apos_copiar_transacoes")
     if metas:
         conexao.execute(nova_meta.insert(), metas)
+    _simular_falha("antes_substituicao")
     op.drop_table("transacoes")
     op.drop_table("metas")
     op.rename_table("_transacoes_orm", "transacoes")

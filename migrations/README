@@ -1,1 +1,14 @@
 Single-database configuration for Flask.
+
+SQLite não oferece, neste projeto, uma promessa de rollback integral para
+todos os passos de DDL. A revisão de conversão valida os dados antes de criar
+ou substituir tabelas, mas o procedimento operacional seguro continua sendo:
+
+1. criar e verificar um backup;
+2. migrar uma cópia fora do repositório;
+3. validar integridade, esquema, IDs e conteúdo semântico;
+4. substituir o original somente em uma etapa futura e autorizada.
+
+No modo online, o Alembic recebe a conexão SQLAlchemy diretamente. A URI
+completa não é armazenada em ``alembic.config.Config``. O modo offline ainda
+precisa da URI utilizável apenas em memória para gerar SQL.
