@@ -1,6 +1,6 @@
 # Sistema de Controle Financeiro Pessoal
 
-Aplicação Flask com persistência em SQLAlchemy 2.x e migrações controladas por
+Aplicação Flask com persistência em SQLAlchemy e migrações controladas por
 Flask-Migrate/Alembic. Nesta etapa, o banco suportado continua sendo SQLite.
 
 ## Configuração
