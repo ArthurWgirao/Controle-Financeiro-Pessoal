@@ -29,7 +29,7 @@ def _limites_periodo(mes_referencia):
     return inicio, fim
 
 
-def listar_metas_mensais(mes_referencia):
+def listar_metas_mensais(mes_referencia, usuario_id):
     inicio, fim = _limites_periodo(mes_referencia)
     gasto = (
         select(
@@ -39,7 +39,8 @@ def listar_metas_mensais(mes_referencia):
         .where(
             Transacao.tipo == "despesa",
             Transacao.data >= inicio,
-            Transacao.data < fim
+            Transacao.data < fim,
+            Transacao.usuario_id == usuario_id
         )
         .group_by(Transacao.categoria)
         .subquery()
@@ -47,23 +48,29 @@ def listar_metas_mensais(mes_referencia):
     registros = db.session.execute(
         select(Meta, func.coalesce(gasto.c.total, Decimal("0.00")))
         .outerjoin(gasto, gasto.c.categoria == Meta.categoria)
+        .where(Meta.usuario_id == usuario_id)
         .order_by(Meta.categoria)
     ).all()
     return [calcular_dados_meta(meta, total) for meta, total in registros]
 
 
-def buscar_meta_por_id(id_meta):
-    return db.session.get(Meta, id_meta)
-
-
-def categoria_possui_meta(categoria):
+def buscar_meta_por_id(id_meta, usuario_id):
     return db.session.scalar(
-        select(Meta.id).where(Meta.categoria == categoria)
+        select(Meta).where(Meta.id == id_meta, Meta.usuario_id == usuario_id)
+    )
+
+
+def categoria_possui_meta(categoria, usuario_id):
+    return db.session.scalar(
+        select(Meta.id).where(
+            Meta.categoria == categoria,
+            Meta.usuario_id == usuario_id
+        )
     ) is not None
 
 
-def cadastrar_meta(categoria, limite):
-    meta = Meta(categoria=categoria, limite=limite)
+def cadastrar_meta(categoria, limite, usuario_id):
+    meta = Meta(categoria=categoria, limite=limite, usuario_id=usuario_id)
     db.session.add(meta)
     try:
         db.session.commit()
@@ -73,8 +80,8 @@ def cadastrar_meta(categoria, limite):
     return meta.id
 
 
-def atualizar_limite_meta(id_meta, limite):
-    meta = buscar_meta_por_id(id_meta)
+def atualizar_limite_meta(id_meta, limite, usuario_id):
+    meta = buscar_meta_por_id(id_meta, usuario_id)
     if meta is None:
         return False
     meta.limite = limite
@@ -82,8 +89,8 @@ def atualizar_limite_meta(id_meta, limite):
     return True
 
 
-def excluir_meta_por_id(id_meta):
-    meta = buscar_meta_por_id(id_meta)
+def excluir_meta_por_id(id_meta, usuario_id):
+    meta = buscar_meta_por_id(id_meta, usuario_id)
     if meta is None:
         return False
     db.session.delete(meta)
@@ -91,7 +98,7 @@ def excluir_meta_por_id(id_meta):
     return True
 
 
-def calcular_gasto_mensal_por_categoria(categoria, mes_referencia):
+def calcular_gasto_mensal_por_categoria(categoria, mes_referencia, usuario_id):
     inicio, fim = _limites_periodo(mes_referencia)
     return db.session.scalar(
         select(func.coalesce(func.sum(Transacao.valor), Decimal("0.00")))
@@ -99,7 +106,8 @@ def calcular_gasto_mensal_por_categoria(categoria, mes_referencia):
             Transacao.categoria == categoria,
             Transacao.tipo == "despesa",
             Transacao.data >= inicio,
-            Transacao.data < fim
+            Transacao.data < fim,
+            Transacao.usuario_id == usuario_id
         )
     )
 
@@ -127,25 +135,31 @@ def calcular_dados_meta(meta, gasto):
     }
 
 
-def _listar_metas():
-    return db.session.scalars(select(Meta).order_by(Meta.id)).all()
+def _listar_metas(usuario_id):
+    return db.session.scalars(
+        select(Meta)
+        .where(Meta.usuario_id == usuario_id)
+        .order_by(Meta.id)
+    ).all()
 
 
-def adicionar_meta():
+def adicionar_meta(usuario_id):
     categoria = escolher_categoria()
     limite = Decimal(str(ler_float("Digite o limite de gastos: ")))
-    meta = db.session.scalar(select(Meta).where(Meta.categoria == categoria))
+    meta = db.session.scalar(select(Meta).where(
+        Meta.categoria == categoria, Meta.usuario_id == usuario_id
+    ))
     if meta:
         meta.limite = limite
         _confirmar()
         print("Meta atualizada!")
     else:
-        cadastrar_meta(categoria, limite)
+        cadastrar_meta(categoria, limite, usuario_id)
         print("Meta criada!")
 
 
-def listar_metas():
-    metas = _listar_metas()
+def listar_metas(usuario_id):
+    metas = _listar_metas(usuario_id)
     if not metas:
         print("Nenhuma meta cadastrada.")
         return
@@ -154,26 +168,26 @@ def listar_metas():
         print(f"{indice} - {meta.categoria} | Limite: R$ {meta.limite:.2f}")
 
 
-def remover_meta():
-    metas = _listar_metas()
+def remover_meta(usuario_id):
+    metas = _listar_metas(usuario_id)
     if not metas:
         print("Nenhuma meta cadastrada.")
         return
-    listar_metas()
+    listar_metas(usuario_id)
     indice = ler_int("\nDigite o índice da meta: ")
     if 0 <= indice < len(metas):
-        excluir_meta_por_id(metas[indice].id)
+        excluir_meta_por_id(metas[indice].id, usuario_id)
         print("Meta removida!")
     else:
         print("Índice inválido!")
 
 
-def editar_meta():
-    metas = _listar_metas()
+def editar_meta(usuario_id):
+    metas = _listar_metas(usuario_id)
     if not metas:
         print("Nenhuma meta cadastrada.")
         return
-    listar_metas()
+    listar_metas(usuario_id)
     indice = ler_int("\nDigite o índice da meta: ")
     if not 0 <= indice < len(metas):
         print("Índice inválido!")
@@ -188,9 +202,9 @@ def editar_meta():
     print("Meta atualizada!")
 
 
-def verificar_metas():
+def verificar_metas(usuario_id):
     mes = date.today().strftime("%m/%Y")
-    metas = listar_metas_mensais(mes)
+    metas = listar_metas_mensais(mes, usuario_id)
     if not metas:
         print("Nenhuma meta cadastrada.")
         return

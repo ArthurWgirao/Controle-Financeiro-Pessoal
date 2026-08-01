@@ -17,26 +17,28 @@ def _confirmar():
         raise
 
 
-def buscar_transacoes_por_tipo(tipo):
+def buscar_transacoes_por_tipo(tipo, usuario_id):
     return db.session.scalars(
         select(Transacao)
-        .where(Transacao.tipo == tipo)
+        .where(Transacao.tipo == tipo, Transacao.usuario_id == usuario_id)
         .order_by(Transacao.id.desc())
     ).all()
 
 
-def buscar_transacao_por_id_e_tipo(id_transacao, tipo):
+def buscar_transacao_por_id_e_tipo(id_transacao, tipo, usuario_id):
     return db.session.scalar(
         select(Transacao).where(
             Transacao.id == id_transacao,
-            Transacao.tipo == tipo
+            Transacao.tipo == tipo,
+            Transacao.usuario_id == usuario_id
         )
     )
 
 
-def cadastrar_transacao(tipo, valor, categoria, descricao):
+def cadastrar_transacao(tipo, valor, categoria, descricao, usuario_id):
     transacao = Transacao(
         tipo=tipo,
+        usuario_id=usuario_id,
         valor=valor,
         categoria=categoria,
         descricao=descricao,
@@ -47,8 +49,8 @@ def cadastrar_transacao(tipo, valor, categoria, descricao):
     return transacao.id
 
 
-def atualizar_transacao(id_transacao, tipo, valor, categoria, descricao):
-    transacao = buscar_transacao_por_id_e_tipo(id_transacao, tipo)
+def atualizar_transacao(id_transacao, tipo, valor, categoria, descricao, usuario_id):
+    transacao = buscar_transacao_por_id_e_tipo(id_transacao, tipo, usuario_id)
     if transacao is None:
         return False
 
@@ -59,8 +61,8 @@ def atualizar_transacao(id_transacao, tipo, valor, categoria, descricao):
     return True
 
 
-def excluir_transacao(id_transacao, tipo):
-    transacao = buscar_transacao_por_id_e_tipo(id_transacao, tipo)
+def excluir_transacao(id_transacao, tipo, usuario_id):
+    transacao = buscar_transacao_por_id_e_tipo(id_transacao, tipo, usuario_id)
     if transacao is None:
         return False
 
@@ -69,10 +71,13 @@ def excluir_transacao(id_transacao, tipo):
     return True
 
 
-def calcular_resumo():
+def calcular_resumo(usuario_id):
     registros = db.session.execute(
         select(Transacao.tipo, func.sum(Transacao.valor))
-        .where(Transacao.tipo.in_(("receita", "despesa")))
+        .where(
+            Transacao.tipo.in_(("receita", "despesa")),
+            Transacao.usuario_id == usuario_id
+        )
         .group_by(Transacao.tipo)
     ).all()
     totais = {tipo: total for tipo, total in registros}
@@ -81,9 +86,11 @@ def calcular_resumo():
     return receitas, despesas, receitas - despesas
 
 
-def _listar_todas():
+def _listar_todas(usuario_id):
     return db.session.scalars(
-        select(Transacao).order_by(Transacao.id)
+        select(Transacao)
+        .where(Transacao.usuario_id == usuario_id)
+        .order_by(Transacao.id)
     ).all()
 
 
@@ -98,28 +105,30 @@ def escolher_categoria():
     return escolher_categoria()
 
 
-def add_receita():
+def add_receita(usuario_id):
     cadastrar_transacao(
         "receita",
         ler_float("Digite o valor da receita: "),
         escolher_categoria(),
-        input("Digite uma descrição: ").strip()
+        input("Digite uma descrição: ").strip(),
+        usuario_id
     )
     print("Receita adicionada!")
 
 
-def add_despesa():
+def add_despesa(usuario_id):
     cadastrar_transacao(
         "despesa",
         ler_float("Digite o valor da despesa: "),
         escolher_categoria(),
-        input("Digite uma descrição: ").strip()
+        input("Digite uma descrição: ").strip(),
+        usuario_id
     )
     print("Despesa adicionada!")
 
 
-def listar_transacoes():
-    transacoes = _listar_todas()
+def listar_transacoes(usuario_id):
+    transacoes = _listar_todas(usuario_id)
     if not transacoes:
         print("Nenhuma transação cadastrada.")
         return
@@ -132,38 +141,38 @@ def listar_transacoes():
         )
 
 
-def ver_saldo():
-    receitas, despesas, saldo = calcular_resumo()
+def ver_saldo(usuario_id):
+    receitas, despesas, saldo = calcular_resumo(usuario_id)
     print("\n===== RESUMO =====")
     print(f"Receitas: R$ {receitas:.2f}")
     print(f"Despesas: R$ {despesas:.2f}")
     print(f"Saldo:    R$ {saldo:.2f}")
 
 
-def remover_transacao():
-    transacoes = _listar_todas()
+def remover_transacao(usuario_id):
+    transacoes = _listar_todas(usuario_id)
     if not transacoes:
         print("Nenhuma transação cadastrada.")
         return
-    listar_transacoes()
+    listar_transacoes(usuario_id)
     indice = ler_int(
         "\nDigite o índice da transação que deseja remover: ",
         permite_zero=True
     )
     if 0 <= indice < len(transacoes):
         transacao = transacoes[indice]
-        excluir_transacao(transacao.id, transacao.tipo)
+        excluir_transacao(transacao.id, transacao.tipo, usuario_id)
         print("Transação removida!")
     else:
         print("Índice inválido!")
 
 
-def editar_transacao():
-    transacoes = _listar_todas()
+def editar_transacao(usuario_id):
+    transacoes = _listar_todas(usuario_id)
     if not transacoes:
         print("Nenhuma transação cadastrada.")
         return
-    listar_transacoes()
+    listar_transacoes(usuario_id)
     indice = ler_int("\nDigite o índice da transação que deseja editar: ")
     if not 0 <= indice < len(transacoes):
         print("Índice inválido!")
@@ -181,16 +190,19 @@ def editar_transacao():
     if input("Deseja alterar a categoria? (s/n): ").lower() == "s":
         categoria = escolher_categoria()
     atualizar_transacao(
-        transacao.id, transacao.tipo, valor, categoria, descricao
+        transacao.id, transacao.tipo, valor, categoria, descricao, usuario_id
     )
     print("Transação atualizada!")
 
 
-def filtrar_por_categoria():
+def filtrar_por_categoria(usuario_id):
     categoria = escolher_categoria()
     transacoes = db.session.scalars(
         select(Transacao)
-        .where(Transacao.categoria == categoria)
+        .where(
+            Transacao.categoria == categoria,
+            Transacao.usuario_id == usuario_id
+        )
         .order_by(Transacao.id)
     ).all()
     if not transacoes:
@@ -204,10 +216,13 @@ def filtrar_por_categoria():
         )
 
 
-def total_por_categoria():
+def total_por_categoria(usuario_id):
     totais = db.session.execute(
         select(Transacao.categoria, func.sum(Transacao.valor))
-        .where(Transacao.tipo == "despesa")
+        .where(
+            Transacao.tipo == "despesa",
+            Transacao.usuario_id == usuario_id
+        )
         .group_by(Transacao.categoria)
         .order_by(Transacao.categoria)
     ).all()
@@ -216,7 +231,7 @@ def total_por_categoria():
         print(f"{categoria}: R$ {total:.2f}")
 
 
-def relatorio_mensal():
+def relatorio_mensal(usuario_id):
     mes_informado = input("Digite o mês e ano (MM/AAAA): ").strip()
     try:
         referencia = datetime.strptime(mes_informado, "%m/%Y")
@@ -233,7 +248,8 @@ def relatorio_mensal():
         select(Transacao).where(
             Transacao.data >= inicio,
             Transacao.data < fim,
-            Transacao.tipo.in_(("receita", "despesa"))
+            Transacao.tipo.in_(("receita", "despesa")),
+            Transacao.usuario_id == usuario_id
         )
     ).all()
     if not transacoes:

@@ -50,6 +50,7 @@ method="POST"
 action="/despesas/excluir/{{ despesa['id'] }}"
 class="form-excluir"
 onsubmit="return confirm('Deseja realmente excluir esta despesa?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn-excluir" title="Excluir despesa">
         🗑️
     </button>

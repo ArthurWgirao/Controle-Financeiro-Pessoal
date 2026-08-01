@@ -1,7 +1,11 @@
 from datetime import datetime
 
 from dotenv import load_dotenv
-from flask import Flask, abort, redirect, render_template, request
+from urllib.parse import urljoin, urlparse
+
+import click
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
+from flask_login import current_user, login_required, login_user, logout_user
 
 load_dotenv(override=False)
 
@@ -13,7 +17,10 @@ from config import (
     obter_classe_configuracao,
     validar_configuracao_producao
 )
-from extensions import db, migrate
+from autenticacao import autenticar_usuario, cadastrar_usuario, normalizar_email
+from extensions import csrf, db, login_manager, migrate
+from models import Meta, Transacao, Usuario
+from sqlalchemy import select
 from metas import (
     atualizar_limite_meta,
     buscar_meta_por_id,
@@ -37,9 +44,10 @@ from validacoes import (
     validar_transacao
 )
 
+@login_required
 def dashboard():
 
-    receitas, despesas, saldo = calcular_resumo()
+    receitas, despesas, saldo = calcular_resumo(current_user.id)
 
     return render_template(
         "dashboard.html",
@@ -51,9 +59,10 @@ def dashboard():
 
 # Receitas
 
+@login_required
 def receitas():
 
-    lista_receitas = buscar_transacoes_por_tipo("receita")
+    lista_receitas = buscar_transacoes_por_tipo("receita", current_user.id)
 
     return render_template(
         "receitas.html",
@@ -61,6 +70,7 @@ def receitas():
     )
 
 
+@login_required
 def nova_receita():
 
     if request.method == "POST":
@@ -96,7 +106,8 @@ def nova_receita():
             "receita",
             valor,
             categoria,
-            descricao
+            descricao,
+            current_user.id
         )
 
         return redirect("/receitas")
@@ -110,9 +121,10 @@ def nova_receita():
     )
 
 
+@login_required
 def editar_receita(id):
 
-    receita = buscar_transacao_por_id_e_tipo(id, "receita")
+    receita = buscar_transacao_por_id_e_tipo(id, "receita", current_user.id)
 
     if receita is None:
         abort(404)
@@ -165,7 +177,8 @@ def editar_receita(id):
             "receita",
             valor,
             categoria,
-            descricao
+            descricao,
+            current_user.id
         ):
             abort(404)
 
@@ -180,9 +193,10 @@ def editar_receita(id):
     )
 
 
+@login_required
 def excluir_receita(id):
 
-    if not excluir_transacao(id, "receita"):
+    if not excluir_transacao(id, "receita", current_user.id):
         abort(404)
 
     return redirect("/receitas")
@@ -190,9 +204,10 @@ def excluir_receita(id):
 
 # Despesas
 
+@login_required
 def despesas():
 
-    lista_despesas = buscar_transacoes_por_tipo("despesa")
+    lista_despesas = buscar_transacoes_por_tipo("despesa", current_user.id)
 
     return render_template(
         "despesas.html",
@@ -200,6 +215,7 @@ def despesas():
     )
 
 
+@login_required
 def nova_despesa():
 
     if request.method == "POST":
@@ -235,7 +251,8 @@ def nova_despesa():
             "despesa",
             valor,
             categoria,
-            descricao
+            descricao,
+            current_user.id
         )
 
         return redirect("/despesas")
@@ -249,9 +266,10 @@ def nova_despesa():
     )
 
 
+@login_required
 def editar_despesa(id):
 
-    despesa = buscar_transacao_por_id_e_tipo(id, "despesa")
+    despesa = buscar_transacao_por_id_e_tipo(id, "despesa", current_user.id)
 
     if despesa is None:
         abort(404)
@@ -304,7 +322,8 @@ def editar_despesa(id):
             "despesa",
             valor,
             categoria,
-            descricao
+            descricao,
+            current_user.id
         ):
             abort(404)
 
@@ -319,9 +338,10 @@ def editar_despesa(id):
     )
 
 
+@login_required
 def excluir_despesa(id):
 
-    if not excluir_transacao(id, "despesa"):
+    if not excluir_transacao(id, "despesa", current_user.id):
         abort(404)
 
     return redirect("/despesas")
@@ -329,10 +349,11 @@ def excluir_despesa(id):
 
 # Metas
 
+@login_required
 def metas():
 
     mes_referencia = datetime.now().strftime("%m/%Y")
-    lista_metas = listar_metas_mensais(mes_referencia)
+    lista_metas = listar_metas_mensais(mes_referencia, current_user.id)
 
     return render_template(
         "metas.html",
@@ -342,6 +363,7 @@ def metas():
     )
 
 
+@login_required
 def nova_meta():
 
     if request.method == "POST":
@@ -360,7 +382,7 @@ def nova_meta():
             categorias
         )
 
-        if not erro and categoria_possui_meta(categoria):
+        if not erro and categoria_possui_meta(categoria, current_user.id):
             erro = "Já existe uma meta para esta categoria."
 
         if erro:
@@ -373,7 +395,7 @@ def nova_meta():
                 edicao=False
             ), 400
 
-        cadastrar_meta(categoria, limite)
+        cadastrar_meta(categoria, limite, current_user.id)
 
         return redirect("/metas")
 
@@ -387,9 +409,10 @@ def nova_meta():
     )
 
 
+@login_required
 def editar_meta(id):
 
-    meta = buscar_meta_por_id(id)
+    meta = buscar_meta_por_id(id, current_user.id)
 
     if meta is None:
         abort(404)
@@ -415,7 +438,7 @@ def editar_meta(id):
                 edicao=True
             ), 400
 
-        if not atualizar_limite_meta(id, limite):
+        if not atualizar_limite_meta(id, limite, current_user.id):
             abort(404)
 
         return redirect("/metas")
@@ -430,9 +453,10 @@ def editar_meta(id):
     )
 
 
+@login_required
 def excluir_meta(id):
 
-    if not excluir_meta_por_id(id):
+    if not excluir_meta_por_id(id, current_user.id):
         abort(404)
 
     return redirect("/metas")
@@ -452,6 +476,7 @@ def formatar_moeda(valor):
 
 # Relatórios
 
+@login_required
 def relatorios():
 
     mes_informado = request.args.get("mes")
@@ -473,7 +498,7 @@ def relatorios():
             formatar_moeda=formatar_moeda
         ), 400
 
-    relatorio = preparar_relatorio(mes, ano)
+    relatorio = preparar_relatorio(mes, ano, current_user.id)
 
     return render_template(
         "relatorios.html",
@@ -486,7 +511,62 @@ def relatorios():
     )
 
 
+def _destino_local(destino):
+    if not destino:
+        return None
+    base = urlparse(request.host_url)
+    alvo = urlparse(urljoin(request.host_url, destino))
+    return destino if alvo.scheme in ("http", "https") and alvo.netloc == base.netloc else None
+
+
+def cadastro():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+    nome = request.form.get("nome", "").strip()
+    email = normalizar_email(request.form.get("email"))
+    erro = None
+    if request.method == "POST":
+        usuario, erro = cadastrar_usuario(
+            nome, email, request.form.get("senha", ""),
+            request.form.get("confirmacao_senha", "")
+        )
+        if usuario:
+            session.clear()
+            login_user(usuario)
+            flash("Conta criada com sucesso.", "sucesso")
+            return redirect(url_for("dashboard"))
+    return render_template("cadastro.html", nome=nome, email=email, erro=erro), (400 if erro else 200)
+
+
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+    email = normalizar_email(request.form.get("email"))
+    erro = None
+    if request.method == "POST":
+        usuario = autenticar_usuario(email, request.form.get("senha", ""))
+        if usuario:
+            lembrar = request.form.get("lembrar") == "1"
+            destino = _destino_local(request.args.get("next"))
+            session.clear()
+            login_user(usuario, remember=lembrar, fresh=True)
+            return redirect(destino or url_for("dashboard"))
+        erro = "E-mail ou senha inválidos."
+    return render_template("login.html", email=email, erro=erro), (401 if erro else 200)
+
+
+@login_required
+def logout():
+    logout_user()
+    session.clear()
+    flash("Sessão encerrada.", "sucesso")
+    return redirect(url_for("login"))
+
+
 def registrar_rotas(app):
+    app.add_url_rule("/cadastro", view_func=cadastro, methods=["GET", "POST"])
+    app.add_url_rule("/login", view_func=login, methods=["GET", "POST"])
+    app.add_url_rule("/logout", view_func=logout, methods=["POST"])
     app.add_url_rule("/", view_func=dashboard)
     app.add_url_rule("/receitas", view_func=receitas)
     app.add_url_rule(
@@ -557,12 +637,69 @@ def create_app(configuracao=None):
 
     db.init_app(aplicacao)
     migrate.init_app(aplicacao, db)
+    login_manager.init_app(aplicacao)
+    csrf.init_app(aplicacao)
+
+    login_manager.login_view = "login"
+    login_manager.login_message = "Faça login para acessar esta página."
+    login_manager.login_message_category = "aviso"
 
     import models
 
     registrar_rotas(aplicacao)
+    registrar_cli(aplicacao)
 
     return aplicacao
+
+
+@login_manager.user_loader
+def carregar_usuario(identificador):
+    try:
+        usuario_id = int(identificador)
+    except (TypeError, ValueError):
+        return None
+    usuario = db.session.get(Usuario, usuario_id)
+    return usuario if usuario and usuario.is_active else None
+
+
+def registrar_cli(aplicacao):
+    @aplicacao.cli.command("create-user")
+    @click.option("--nome", prompt=True)
+    @click.option("--email", prompt=True)
+    def criar_usuario_cli(nome, email):
+        senha = click.prompt("Senha", hide_input=True)
+        confirmacao = click.prompt("Confirme a senha", hide_input=True)
+        usuario, erro = cadastrar_usuario(nome, email, senha, confirmacao)
+        if erro:
+            raise click.ClickException(erro)
+        click.echo(f"Usuário criado com ID {usuario.id}.")
+
+    @aplicacao.cli.command("assign-legacy-data")
+    @click.option("--email", required=True)
+    @click.option("--confirm", is_flag=True)
+    def associar_dados_legados(email, confirm):
+        usuario = db.session.scalar(
+            select(Usuario).where(Usuario.email == normalizar_email(email))
+        )
+        if not usuario:
+            raise click.ClickException("Usuário não encontrado.")
+        transacoes = db.session.scalars(
+            select(Transacao).where(Transacao.usuario_id.is_(None))
+        ).all()
+        metas = db.session.scalars(
+            select(Meta).where(Meta.usuario_id.is_(None))
+        ).all()
+        click.echo(f"Registros sem proprietário: {len(transacoes)} transações e {len(metas)} metas.")
+        if not confirm:
+            raise click.ClickException("Use --confirm para autorizar a associação.")
+        try:
+            for registro in (*transacoes, *metas):
+                registro.usuario_id = usuario.id
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+        click.echo(f"Associação concluída ao usuário ID {usuario.id}.")
 
 
 app = create_app()

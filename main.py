@@ -19,6 +19,8 @@ from metas import(
 )
 
 from graficos import grafico_despesas_categoria
+from autenticacao import autenticar_usuario
+from getpass import getpass
 
 
 
@@ -49,7 +51,21 @@ def menu():
 
 
 
+def autenticar_terminal():
+    email = input("E-mail: ").strip()
+    senha = getpass("Senha: ")
+    usuario = autenticar_usuario(email, senha)
+    if not usuario:
+        print("E-mail ou senha inválidos.")
+        return None
+    return usuario.id
+
+
 def main():
+    usuario_id = autenticar_terminal()
+    if usuario_id is None:
+        return
+
     opcoes = {
         "1": add_receita,
         "2": add_despesa,
@@ -78,7 +94,7 @@ def main():
             break
 
         elif opcao in opcoes:
-            opcoes[opcao]()
+            opcoes[opcao](usuario_id)
 
         else:
             print("Opção inválida!")

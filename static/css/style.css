@@ -264,6 +264,22 @@ button {
 
 }
 
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 3px solid #111;
+    outline-offset: 2px;
+}
+
+.usuario-atual { margin-bottom: 18px; font-weight: bold; }
+.form-logout { margin-top: 25px; }
+.nav-autenticacao { display: grid; gap: 10px; }
+.mensagem-flash { margin-bottom: 18px; padding: 12px; border-radius: 8px; background: white; }
+.mensagem-flash.sucesso { border-left: 5px solid #16a34a; }
+.mensagem-flash.aviso { border-left: 5px solid #f4c400; }
+.auth-card { max-width: 500px; margin: 5vh auto; }
+.auth-form { width: 100%; }
+.auth-card > p { margin-top: 18px; }
+.campo-checkbox { display: flex; gap: 8px; align-items: center; }
+
 .mensagem-erro {
     width: 400px;
     margin-bottom: 15px;

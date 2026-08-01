@@ -5,18 +5,18 @@ import pytest
 import metas
 
 
-def test_funcoes_de_persistencia_de_meta(caminho_banco):
-    identificador = metas.cadastrar_meta("Comida", 100)
-    assert metas.categoria_possui_meta("Comida")
-    assert metas.buscar_meta_por_id(identificador)["limite"] == 100
+def test_funcoes_de_persistencia_de_meta(caminho_banco, usuario):
+    identificador = metas.cadastrar_meta("Comida", 100, usuario.id)
+    assert metas.categoria_possui_meta("Comida", usuario.id)
+    assert metas.buscar_meta_por_id(identificador, usuario.id)["limite"] == 100
 
-    assert metas.atualizar_limite_meta(identificador, 150)
-    atualizada = metas.buscar_meta_por_id(identificador)
+    assert metas.atualizar_limite_meta(identificador, 150, usuario.id)
+    atualizada = metas.buscar_meta_por_id(identificador, usuario.id)
     assert atualizada["categoria"] == "Comida"
     assert atualizada["limite"] == 150
 
-    assert metas.excluir_meta_por_id(identificador)
-    assert metas.buscar_meta_por_id(identificador) is None
+    assert metas.excluir_meta_por_id(identificador, usuario.id)
+    assert metas.buscar_meta_por_id(identificador, usuario.id) is None
 
 
 @pytest.mark.parametrize(
@@ -52,7 +52,8 @@ def test_gasto_mensal_ignora_receita_e_despesa_antiga(
     inserir_despesa,
     inserir_receita,
     data_atual,
-    data_mes_anterior
+    data_mes_anterior,
+    usuario
 ):
     inserir_despesa(valor=30, data=data_atual)
     inserir_despesa(valor=500, data=data_mes_anterior)
@@ -60,20 +61,21 @@ def test_gasto_mensal_ignora_receita_e_despesa_antiga(
 
     mes = datetime.now().strftime("%m/%Y")
     assert metas.calcular_gasto_mensal_por_categoria(
-        "Comida", mes
+        "Comida", mes, usuario.id
     ) == 30
 
 
 def test_listagem_mensal_integra_despesas(
     inserir_meta,
     inserir_despesa,
-    data_atual
+    data_atual,
+    usuario
 ):
     inserir_meta(limite=100)
     inserir_despesa(valor=40, data=data_atual)
 
     lista = metas.listar_metas_mensais(
-        datetime.now().strftime("%m/%Y")
+        datetime.now().strftime("%m/%Y"), usuario.id
     )
     assert lista[0]["gasto"] == 40
     assert lista[0]["restante"] == 60

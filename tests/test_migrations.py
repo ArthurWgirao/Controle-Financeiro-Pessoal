@@ -106,7 +106,7 @@ def test_upgrade_completo_em_banco_novo_e_repeticao(tmp_path):
     executar(app, "upgrade")
     assert consultar(
         caminho, "SELECT version_num FROM alembic_version"
-    ) == [("0002_orm",)]
+    ) == [("0004_auth_ownership_required",)]
     colunas = {
         item[1]: (item[2], item[3])
         for item in consultar(caminho, "PRAGMA table_info(transacoes)")
@@ -130,7 +130,7 @@ def test_upgrade_legado_preserva_ids_dados_e_datas(tmp_path):
     )
     app = criar_app(caminho)
     executar(app, "stamp", "0001_legacy")
-    executar(app, "upgrade")
+    executar(app, "upgrade", "0003_auth_ownership_nullable")
 
     assert consultar(
         caminho,
@@ -173,7 +173,7 @@ def test_downgrade_restaura_formato_legado(tmp_path):
     )
     app = criar_app(caminho)
     executar(app, "stamp", "0001_legacy")
-    executar(app, "upgrade")
+    executar(app, "upgrade", "0002_orm")
     executar(app, "downgrade", "0001_legacy")
     assert consultar(
         caminho, "SELECT id, valor, data FROM transacoes"
@@ -318,7 +318,7 @@ def test_falha_intermediaria_preserva_origem_e_permite_recuperacao(
 
     shutil.copy2(backup, recuperado)
     app_recuperado = criar_app(recuperado)
-    executar(app_recuperado, "upgrade")
+    executar(app_recuperado, "upgrade", "0002_orm")
     assert consultar(
         recuperado, "SELECT version_num FROM alembic_version"
     ) == [("0002_orm",)]

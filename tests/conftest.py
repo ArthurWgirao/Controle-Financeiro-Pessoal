@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 
 from extensions import db
-from models import Meta, Transacao
+from models import Meta, Transacao, Usuario
 
 
 RAIZ_PROJETO = Path(__file__).resolve().parents[1]
@@ -55,7 +55,8 @@ def caminho_banco(tmp_path, monkeypatch):
     aplicacao = create_app({
         "TESTING": True,
         "SECRET_KEY": "chave-fixa-da-fixture-de-testes",
-        "DATABASE_PATH": str(caminho)
+        "DATABASE_PATH": str(caminho),
+        "WTF_CSRF_ENABLED": False
     })
     contexto = aplicacao.app_context()
     contexto.push()
@@ -96,17 +97,37 @@ def conexao_banco(caminho_banco):
 
 
 @pytest.fixture
-def inserir_transacao(caminho_banco):
+def usuario(caminho_banco):
+    usuario = Usuario(nome="Usuário Teste", email="usuario@example.test")
+    usuario.definir_senha("senha-segura")
+    db.session.add(usuario)
+    db.session.commit()
+    return usuario
+
+
+@pytest.fixture
+def segundo_usuario(caminho_banco):
+    usuario = Usuario(nome="Segundo Usuário", email="segundo@example.test")
+    usuario.definir_senha("outra-senha")
+    db.session.add(usuario)
+    db.session.commit()
+    return usuario
+
+
+@pytest.fixture
+def inserir_transacao(caminho_banco, usuario):
     def inserir(
         tipo="despesa",
         valor=10,
         categoria="Comida",
         descricao="Teste",
-        data=None
+        data=None,
+        usuario_id=None
     ):
         data = data or datetime.now().strftime("%d/%m/%Y")
         transacao = Transacao(
             tipo=tipo,
+            usuario_id=usuario_id or usuario.id,
             valor=valor,
             categoria=categoria,
             descricao=descricao,
@@ -136,9 +157,9 @@ def inserir_despesa(inserir_transacao):
 
 
 @pytest.fixture
-def inserir_meta(caminho_banco):
-    def inserir(categoria="Comida", limite=100):
-        meta = Meta(categoria=categoria, limite=limite)
+def inserir_meta(caminho_banco, usuario):
+    def inserir(categoria="Comida", limite=100, usuario_id=None):
+        meta = Meta(categoria=categoria, limite=limite, usuario_id=usuario_id or usuario.id)
         db.session.add(meta)
         db.session.commit()
         return meta.id
@@ -162,5 +183,14 @@ def aplicacao(caminho_banco, monkeypatch):
 
 
 @pytest.fixture
-def cliente(aplicacao):
+def cliente(aplicacao, usuario):
+    cliente = aplicacao.test_client()
+    with cliente.session_transaction() as sessao:
+        sessao["_user_id"] = str(usuario.id)
+        sessao["_fresh"] = True
+    return cliente
+
+
+@pytest.fixture
+def cliente_anonimo(aplicacao):
     return aplicacao.test_client()

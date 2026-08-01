@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<section class="auth-card">
+    <h1>Entrar</h1>
+    {% if erro %}<div class="mensagem-erro" role="alert">{{ erro }}</div>{% endif %}
+    <form method="POST" class="formulario auth-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="email">E-mail</label>
+        <input id="email" name="email" type="email" autocomplete="email" required value="{{ email }}">
+        <label for="senha">Senha</label>
+        <input id="senha" name="senha" type="password" autocomplete="current-password" required>
+        <label class="campo-checkbox" for="lembrar">
+            <input id="lembrar" name="lembrar" type="checkbox" value="1"> Lembrar de mim
+        </label>
+        <button type="submit">Entrar</button>
+    </form>
+    <p>Não possui conta? <a href="{{ url_for('cadastro') }}">Crie sua conta</a>.</p>
+</section>
+{% endblock %}

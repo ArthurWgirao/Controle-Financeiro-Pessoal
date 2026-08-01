@@ -91,9 +91,10 @@ def gerar_seis_periodos(mes, ano):
     return periodos
 
 
-def buscar_movimentacoes_reconhecidas(data_inicio=None, data_fim=None):
+def buscar_movimentacoes_reconhecidas(usuario_id, data_inicio=None, data_fim=None):
     consulta = select(Transacao).where(
-        Transacao.tipo.in_(("receita", "despesa"))
+        Transacao.tipo.in_(("receita", "despesa")),
+        Transacao.usuario_id == usuario_id
     )
     if data_inicio is not None:
         consulta = consulta.where(Transacao.data >= data_inicio)
@@ -266,7 +267,7 @@ def obter_evolucao_mensal(movimentacoes, mes, ano):
     }
 
 
-def preparar_relatorio(mes, ano):
+def preparar_relatorio(mes, ano, usuario_id):
 
     periodos = gerar_seis_periodos(mes, ano)
     primeiro = periodos[0]
@@ -277,6 +278,7 @@ def preparar_relatorio(mes, ano):
         else date(ano, mes + 1, 1)
     )
     movimentacoes = buscar_movimentacoes_reconhecidas(
+        usuario_id,
         data_inicio,
         data_fim
     )

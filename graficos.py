@@ -5,10 +5,13 @@ from extensions import db
 from models import Transacao
 
 
-def grafico_despesas_categoria():
+def grafico_despesas_categoria(usuario_id):
     dados = db.session.execute(
         select(Transacao.categoria, func.sum(Transacao.valor))
-        .where(Transacao.tipo == "despesa")
+        .where(
+            Transacao.tipo == "despesa",
+            Transacao.usuario_id == usuario_id
+        )
         .group_by(Transacao.categoria)
         .order_by(Transacao.categoria)
     ).all()
