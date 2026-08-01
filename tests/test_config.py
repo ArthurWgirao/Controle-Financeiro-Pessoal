@@ -143,8 +143,9 @@ def test_primeiro_request_exige_migracao_previa(monkeypatch, tmp_path):
         "SECRET_KEY": "teste",
         "DATABASE_PATH": str(caminho)
     })
-    with pytest.raises(Exception, match="no such table"):
-        aplicacao.test_client().get("/")
+    resposta = aplicacao.test_client().get("/")
+    assert resposta.status_code == 302
+    assert "/login" in resposta.headers["Location"]
     from extensions import db
     with aplicacao.app_context():
         db.session.remove()
@@ -172,7 +173,7 @@ def test_duas_instancias_sao_independentes(monkeypatch, tmp_path):
     for aplicacao in (primeira, segunda):
         with aplicacao.app_context():
             db.create_all()
-        assert aplicacao.test_client().get("/").status_code == 200
+        assert aplicacao.test_client().get("/").status_code == 302
         with aplicacao.app_context():
             db.session.remove()
             db.engine.dispose()
@@ -233,6 +234,9 @@ def test_todas_as_rotas_e_metodos_foram_preservados(
         ("/metas/editar/<int:id>", ("GET", "POST")),
         ("/metas/excluir/<int:id>", ("POST",)),
         ("/relatorios", ("GET",))
+        ,("/cadastro", ("GET", "POST"))
+        ,("/login", ("GET", "POST"))
+        ,("/logout", ("POST",))
     }
 
 

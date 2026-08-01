@@ -76,6 +76,7 @@
         action="/metas/excluir/{{ meta['id'] }}"
         class="form-excluir"
         onsubmit="return confirm('Deseja realmente excluir esta meta?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn-excluir">
                 Excluir
             </button>

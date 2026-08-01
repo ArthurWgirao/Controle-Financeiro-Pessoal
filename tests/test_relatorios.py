@@ -47,7 +47,7 @@ def test_rota_sem_parametros_usa_periodo_atual(cliente):
 
 
 def test_resumo_ignora_tipo_desconhecido(
-    inserir_transacao
+    inserir_transacao, usuario
 ):
     inserir_transacao(
         tipo="receita", valor=100, data="01/07/2026"
@@ -59,7 +59,7 @@ def test_resumo_ignora_tipo_desconhecido(
         tipo="outro", valor=999, data="03/07/2026"
     )
 
-    resumo = relatorios.preparar_relatorio(7, 2026)["resumo"]
+    resumo = relatorios.preparar_relatorio(7, 2026, usuario.id)["resumo"]
     assert resumo["receitas"] == 100
     assert resumo["despesas"] == 40
     assert resumo["saldo"] == 60
@@ -75,7 +75,8 @@ def test_estados_do_saldo(
     inserir_transacao,
     receita,
     despesa,
-    classe
+    classe,
+    usuario
 ):
     if receita:
         inserir_transacao(
@@ -87,12 +88,12 @@ def test_estados_do_saldo(
         )
 
     assert relatorios.preparar_relatorio(
-        7, 2026
+        7, 2026, usuario.id
     )["resumo"]["classe_saldo"] == classe
 
 
 def test_categorias_agrupadas_ordenadas_e_com_percentual(
-    inserir_transacao
+    inserir_transacao, usuario
 ):
     inserir_transacao(
         tipo="despesa",
@@ -120,7 +121,7 @@ def test_categorias_agrupadas_ordenadas_e_com_percentual(
     )
 
     categorias = relatorios.preparar_relatorio(
-        7, 2026
+        7, 2026, usuario.id
     )["despesas_categorias"]
     assert [item["categoria"] for item in categorias] == [
         "Comida", "Educação"
@@ -132,14 +133,14 @@ def test_categorias_agrupadas_ordenadas_e_com_percentual(
     )
 
 
-def test_periodo_sem_despesa_nao_divide_por_zero(inserir_receita):
+def test_periodo_sem_despesa_nao_divide_por_zero(inserir_receita, usuario):
     inserir_receita(valor=100, data="01/07/2026")
     assert relatorios.preparar_relatorio(
-        7, 2026
+        7, 2026, usuario.id
     )["despesas_categorias"] == []
 
 
-def test_evolucao_de_seis_meses_com_zeros(inserir_transacao):
+def test_evolucao_de_seis_meses_com_zeros(inserir_transacao, usuario):
     inserir_transacao(
         tipo="receita", valor=100, data="01/02/2026"
     )
@@ -150,7 +151,7 @@ def test_evolucao_de_seis_meses_com_zeros(inserir_transacao):
         tipo="receita", valor=50, data="01/07/2026"
     )
 
-    evolucao = relatorios.preparar_relatorio(7, 2026)["evolucao"]
+    evolucao = relatorios.preparar_relatorio(7, 2026, usuario.id)["evolucao"]
     assert evolucao["rotulos"] == [
         "fev/2026", "mar/2026", "abr/2026",
         "mai/2026", "jun/2026", "jul/2026"

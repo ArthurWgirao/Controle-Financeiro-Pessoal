@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from sqlalchemy.engine import URL
@@ -15,6 +16,11 @@ class Config:
     DATABASE_PATH = "finance.db"
     SQLALCHEMY_DATABASE_URI = None
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = False
+    PERMANENT_SESSION_LIFETIME = timedelta(days=30)
+    WTF_CSRF_ENABLED = True
 
 
 class DevelopmentConfig(Config):
@@ -29,6 +35,7 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     TESTING = False
     DEBUG = False
+    SESSION_COOKIE_SECURE = True
 
 
 CONFIGURACOES = {

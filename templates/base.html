@@ -5,6 +5,7 @@
 <head>
 
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>
         Controle Financeiro
@@ -26,6 +27,8 @@
             💰 Finance
         </h2>
 
+        {% if current_user.is_authenticated %}
+        <p class="usuario-atual">Olá, {{ current_user.nome }}</p>
         <ul>
 
             <li>
@@ -49,11 +52,27 @@
             </li>
 
         </ul>
+        <form method="POST" action="{{ url_for('logout') }}" class="form-logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">Sair</button>
+        </form>
+        {% else %}
+        <nav class="nav-autenticacao">
+            <a href="{{ url_for('login') }}">Entrar</a>
+            <a href="{{ url_for('cadastro') }}">Criar conta</a>
+        </nav>
+        {% endif %}
 
     </div>
 
 
     <main class="content">
+
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+            {% for categoria, mensagem in mensagens %}
+                <div class="mensagem-flash {{ categoria }}" role="status">{{ mensagem }}</div>
+            {% endfor %}
+        {% endwith %}
 
         {% block conteudo %}
         {% endblock %}
