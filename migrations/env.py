@@ -4,6 +4,10 @@ from logging.config import fileConfig
 from flask import current_app
 
 from alembic import context
+from migrations.env_helpers import (
+    configurar_contexto_online,
+    obter_url_offline
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -19,19 +23,10 @@ def get_engine():
     return current_app.extensions['migrate'].db.engine
 
 
-def get_engine_url():
-    try:
-        return get_engine().url.render_as_string(hide_password=False).replace(
-            '%', '%%')
-    except AttributeError:
-        return str(get_engine().url).replace('%', '%%')
-
-
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-config.set_main_option('sqlalchemy.url', get_engine_url())
 target_db = current_app.extensions['migrate'].db
 
 # other values from the config, defined by the needs of env.py,
@@ -58,7 +53,10 @@ def run_migrations_offline():
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    # O modo offline precisa da URL para gerar SQL. No modo online, a
+    # conexão aberta é passada diretamente ao Alembic e a URL completa não é
+    # copiada para Config, evitando que credenciais permaneçam ali.
+    url = obter_url_offline(get_engine())
     context.configure(
         url=url, target_metadata=get_metadata(), literal_binds=True
     )
@@ -92,10 +90,11 @@ def run_migrations_online():
     connectable = get_engine()
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=get_metadata(),
-            **conf_args
+        configurar_contexto_online(
+            context,
+            connection,
+            get_metadata(),
+            conf_args
         )
 
         with context.begin_transaction():

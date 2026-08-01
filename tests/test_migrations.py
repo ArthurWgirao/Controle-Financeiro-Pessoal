@@ -1,16 +1,34 @@
 import sqlite3
+import shutil
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
 from app import create_app
 from extensions import db
+from migrations.env_helpers import (
+    configurar_contexto_online,
+    obter_url_offline
+)
+from models import Meta, Transacao
+from sqlalchemy.engine import URL
 
 
 APLICACOES = []
+BANCO_REAL = Path(__file__).resolve().parents[1] / "finance.db"
+
+
+def garantir_alvo_temporario(caminho):
+    alvo = Path(caminho).resolve()
+    if alvo == BANCO_REAL.resolve():
+        raise RuntimeError("Migração bloqueada para o finance.db real.")
+    return alvo
 
 
 def criar_app(caminho):
+    caminho = garantir_alvo_temporario(caminho)
     app = create_app({
         "TESTING": True,
         "SECRET_KEY": "migracoes",
@@ -37,6 +55,7 @@ def executar(app, *argumentos):
 
 
 def criar_legado(caminho, transacoes=(), metas=()):
+    caminho = garantir_alvo_temporario(caminho)
     conexao = sqlite3.connect(caminho)
     try:
         conexao.executescript(
@@ -124,6 +143,24 @@ def test_upgrade_legado_preserva_ids_dados_e_datas(tmp_path):
     assert consultar(
         caminho, "SELECT id, categoria, limite FROM metas"
     ) == [(4, "Lazer", 9999999999.99)]
+    colunas = {
+        item[1]: item
+        for item in consultar(caminho, "PRAGMA table_info(transacoes)")
+    }
+    assert colunas["tipo"][3] == 1
+    assert colunas["valor"][2] == "NUMERIC(12, 2)"
+    assert colunas["data"][2] == "DATE"
+    assert any(
+        indice[2] == 1
+        for indice in consultar(caminho, "PRAGMA index_list(metas)")
+    )
+
+    with app.app_context():
+        transacao = db.session.get(Transacao, 7)
+        meta = db.session.get(Meta, 4)
+        assert transacao.valor == Decimal("0.10")
+        assert transacao.data == date(2026, 1, 31)
+        assert meta.limite == Decimal("9999999999.99")
 
 
 def test_downgrade_restaura_formato_legado(tmp_path):
@@ -171,6 +208,41 @@ def test_downgrade_restaura_formato_legado(tmp_path):
             [(6, "receita", -1, "Outro", "Teste", "01/01/2026")],
             [],
             "transacoes id=6: valor inválido"
+        ),
+        (
+            [(7, "outro", 10, "Outro", "Teste", "01/01/2026")],
+            [],
+            "transacoes id=7: tipo desconhecido"
+        ),
+        (
+            [(8, "receita", 10.999, "Outro", "Teste", "01/01/2026")],
+            [],
+            "transacoes id=8: valor inválido"
+        ),
+        (
+            [(9, "receita", None, "Outro", "Teste", "01/01/2026")],
+            [],
+            "transacoes id=9: valor inválido"
+        ),
+        (
+            [(10, "receita", "", "Outro", "Teste", "01/01/2026")],
+            [],
+            "transacoes id=10: valor inválido"
+        ),
+        (
+            [(11, "receita", 0, "Outro", "Teste", "01/01/2026")],
+            [],
+            "transacoes id=11: valor inválido"
+        ),
+        (
+            [(12, "receita", float("nan"), "Outro", "Teste", "01/01/2026")],
+            [],
+            "transacoes id=12: valor inválido"
+        ),
+        (
+            [],
+            [(13, "Outro", -1)],
+            "metas id=13: limite inválido"
         )
     ]
 )
@@ -203,3 +275,90 @@ def test_legado_invalido_falha_sem_alteracao_parcial(
     }
     assert tipos["valor"] == "REAL"
     assert tipos["data"] == "TEXT"
+
+
+@pytest.mark.parametrize(
+    "ponto",
+    [
+        "apos_validacao",
+        "apos_criar_transacoes",
+        "apos_criar_temporarias",
+        "apos_copiar_transacoes",
+        "antes_substituicao"
+    ]
+)
+def test_falha_intermediaria_preserva_origem_e_permite_recuperacao(
+    tmp_path,
+    ponto
+):
+    caminho = tmp_path / f"falha-{ponto}.db"
+    backup = tmp_path / f"backup-{ponto}.db"
+    recuperado = tmp_path / f"recuperado-{ponto}.db"
+    dados = [(12, "receita", 20.25, "Outro", "Genérico", "02/02/2026")]
+    criar_legado(caminho, transacoes=dados, metas=[(3, "Outro", 50)])
+    app = criar_app(caminho)
+    executar(app, "stamp", "0001_legacy")
+    shutil.copy2(caminho, backup)
+
+    resultado = app.test_cli_runner().invoke(
+        args=["db", "-x", f"falhar_em={ponto}", "upgrade"]
+    )
+
+    assert resultado.exit_code != 0
+    assert "Falha simulada" in resultado.output
+    assert consultar(caminho, "PRAGMA integrity_check") == [("ok",)]
+    assert consultar(
+        caminho,
+        "SELECT id, tipo, valor, categoria, descricao, data "
+        "FROM transacoes ORDER BY id"
+    ) == dados
+    assert consultar(
+        caminho, "SELECT version_num FROM alembic_version"
+    ) == [("0001_legacy",)]
+
+    shutil.copy2(backup, recuperado)
+    app_recuperado = criar_app(recuperado)
+    executar(app_recuperado, "upgrade")
+    assert consultar(
+        recuperado, "SELECT version_num FROM alembic_version"
+    ) == [("0002_orm",)]
+    assert consultar(recuperado, "PRAGMA integrity_check") == [("ok",)]
+
+
+def test_contexto_online_nao_armazena_nem_expoe_credencial(capsys, caplog):
+    segredo = "senha%reservada"
+    url = URL.create(
+        "postgresql",
+        username="usuario",
+        password=segredo,
+        host="servidor",
+        database="banco"
+    )
+
+    class Engine:
+        pass
+
+    class Contexto:
+        argumentos = None
+
+        def configure(self, **argumentos):
+            self.argumentos = argumentos
+
+    engine = Engine()
+    engine.url = url
+    url_offline = obter_url_offline(engine)
+    assert "senha" in url_offline
+    assert "%%" in url_offline
+
+    contexto = Contexto()
+    conexao = object()
+    configurar_contexto_online(contexto, conexao, "metadata", {})
+    assert contexto.argumentos == {
+        "connection": conexao,
+        "target_metadata": "metadata"
+    }
+    assert "url" not in contexto.argumentos
+    saida = capsys.readouterr()
+    assert segredo not in saida.out
+    assert segredo not in saida.err
+    assert segredo not in caplog.text
