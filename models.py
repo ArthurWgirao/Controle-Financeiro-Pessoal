@@ -11,6 +11,7 @@ from extensions import db
 
 class Usuario(UserMixin, db.Model):
     __tablename__ = "usuarios"
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -44,6 +45,7 @@ class Usuario(UserMixin, db.Model):
 
 class Transacao(db.Model):
     __tablename__ = "transacoes"
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     usuario_id: Mapped[int] = mapped_column(
@@ -73,6 +75,7 @@ class Meta(db.Model):
     __tablename__ = "metas"
     __table_args__ = (
         UniqueConstraint("usuario_id", "categoria", name="uq_metas_usuario_categoria"),
+        {"sqlite_autoincrement": True},
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

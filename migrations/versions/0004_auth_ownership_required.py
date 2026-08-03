@@ -7,6 +7,8 @@ Revises: 0003_auth_ownership_nullable
 from alembic import op
 import sqlalchemy as sa
 
+from migrations.sequence_helpers import capturar_sequencia, restaurar_sequencia
+
 
 revision = "0004_auth_ownership_required"
 down_revision = "0003_auth_ownership_nullable"
@@ -25,14 +27,35 @@ def upgrade():
                 f"Migração 0004 bloqueada: {quantidade} registro(s) em {tabela} sem proprietário. "
                 "Crie o usuário e execute assign-legacy-data antes de continuar."
             )
-    with op.batch_alter_table("transacoes") as batch:
+    sequencias = {
+        tabela: capturar_sequencia(conexao, tabela)
+        for tabela in ("transacoes", "metas")
+    }
+    with op.batch_alter_table(
+        "transacoes", table_kwargs={"sqlite_autoincrement": True}
+    ) as batch:
         batch.alter_column("usuario_id", existing_type=sa.Integer(), nullable=False)
-    with op.batch_alter_table("metas") as batch:
+    with op.batch_alter_table(
+        "metas", table_kwargs={"sqlite_autoincrement": True}
+    ) as batch:
         batch.alter_column("usuario_id", existing_type=sa.Integer(), nullable=False)
+    for tabela in ("transacoes", "metas"):
+        restaurar_sequencia(conexao, tabela, sequencias[tabela])
 
 
 def downgrade():
-    with op.batch_alter_table("metas") as batch:
+    conexao = op.get_bind()
+    sequencias = {
+        tabela: capturar_sequencia(conexao, tabela)
+        for tabela in ("transacoes", "metas")
+    }
+    with op.batch_alter_table(
+        "metas", table_kwargs={"sqlite_autoincrement": True}
+    ) as batch:
         batch.alter_column("usuario_id", existing_type=sa.Integer(), nullable=True)
-    with op.batch_alter_table("transacoes") as batch:
+    with op.batch_alter_table(
+        "transacoes", table_kwargs={"sqlite_autoincrement": True}
+    ) as batch:
         batch.alter_column("usuario_id", existing_type=sa.Integer(), nullable=True)
+    for tabela in ("transacoes", "metas"):
+        restaurar_sequencia(conexao, tabela, sequencias[tabela])
