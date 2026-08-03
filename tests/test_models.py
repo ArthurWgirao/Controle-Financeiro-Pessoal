@@ -11,6 +11,13 @@ from models import Meta, Transacao, Usuario
 
 def test_modelos_criam_as_tabelas_no_banco_temporario(caminho_banco):
     assert {"usuarios", "transacoes", "metas"} <= set(inspect(db.engine).get_table_names())
+    with db.engine.connect() as conexao:
+        for tabela in ("usuarios", "transacoes", "metas"):
+            ddl = conexao.exec_driver_sql(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name=?",
+                (tabela,)
+            ).scalar_one()
+            assert "INTEGER" in ddl and "AUTOINCREMENT" in ddl
 
 
 def test_campos_tipos_nulabilidade_e_chaves(caminho_banco):
