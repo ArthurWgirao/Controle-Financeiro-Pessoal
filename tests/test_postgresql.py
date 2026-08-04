@@ -1,15 +1,10 @@
-import os
 import re
 from datetime import date
 from decimal import Decimal
-from uuid import uuid4
 
-import psycopg
 import pytest
 from flask import g
-from psycopg import sql
 from sqlalchemy import inspect, select, text
-from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import IntegrityError
 
 from autenticacao import autenticar_usuario, cadastrar_usuario
@@ -17,50 +12,19 @@ from extensions import db
 from metas import cadastrar_meta
 from models import Meta, Transacao, Usuario
 from transacoes import cadastrar_transacao
+from tests.infra_postgresql import banco_postgresql_temporario
 
 
 pytestmark = pytest.mark.postgresql
-PREFIXO_SEGURO = "controle_financeiro_test_"
-
-
 @pytest.fixture(scope="module")
 def url_postgresql_temporaria():
-    admin_url = os.getenv("POSTGRES_TEST_ADMIN_URL")
-    if not admin_url:
-        pytest.skip("POSTGRES_TEST_ADMIN_URL não configurada")
-    url_admin = make_url(admin_url)
-    assert url_admin.drivername == "postgresql+psycopg"
-    nome = PREFIXO_SEGURO + uuid4().hex
-    assert nome.startswith(PREFIXO_SEGURO) and re.fullmatch(r"[a-z0-9_]+", nome)
-
-    parametros = {
-        "host": url_admin.host,
-        "port": url_admin.port,
-        "dbname": url_admin.database,
-        "user": url_admin.username,
-        "password": url_admin.password,
-        "autocommit": True,
-    }
-    with psycopg.connect(**parametros) as conexao:
-        conexao.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(nome)))
-    url_teste = URL.create(
-        "postgresql+psycopg",
-        username=url_admin.username,
-        password=url_admin.password,
-        host=url_admin.host,
-        port=url_admin.port,
-        database=nome,
-    )
-    yield url_teste
-
-    assert nome.startswith(PREFIXO_SEGURO)
-    with psycopg.connect(**parametros) as conexao:
-        conexao.execute(
-            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-            "WHERE datname = %s AND pid <> pg_backend_pid()",
-            (nome,),
-        )
-        conexao.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(nome)))
+    try:
+        with banco_postgresql_temporario() as (url, _):
+            yield url
+    except RuntimeError as erro:
+        if "não configurada" in str(erro):
+            pytest.skip(str(erro))
+        raise
 
 
 @pytest.fixture(scope="module")

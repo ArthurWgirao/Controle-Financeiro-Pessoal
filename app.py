@@ -43,6 +43,8 @@ from validacoes import (
     validar_meta,
     validar_transacao
 )
+from migracao_dados import comando_transferencia
+
 
 @login_required
 def dashboard():
@@ -663,6 +665,8 @@ def carregar_usuario(identificador):
 
 
 def registrar_cli(aplicacao):
+    aplicacao.cli.add_command(comando_transferencia)
+
     @aplicacao.cli.command("create-user")
     @click.option("--nome", prompt=True)
     @click.option("--email", prompt=True)
