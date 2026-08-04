@@ -247,6 +247,30 @@ def test_objeto_wsgi_e_factory_compativeis(monkeypatch):
     assert callable(modulo.create_app)
 
 
+@pytest.mark.parametrize(
+    ("entrada", "esperada"),
+    [
+        ("postgres://user:pass@host/db", "postgresql+psycopg://user:pass@host/db"),
+        ("postgresql://user:pass@host/db", "postgresql+psycopg://user:pass@host/db"),
+        (
+            "postgresql://user:p%40ss%3Aword@host/db?sslmode=require",
+            "postgresql+psycopg://user:p%40ss%3Aword@host/db?sslmode=require",
+        ),
+        ("postgresql+psycopg://user:pass@host/db", "postgresql+psycopg://user:pass@host/db"),
+    ]
+)
+def test_normalizacao_url_postgresql_preserva_conteudo(entrada, esperada):
+    from config import normalizar_url_banco
+    assert normalizar_url_banco(entrada) == esperada
+
+
+def test_sqlite_continua_fallback_sem_database_url(monkeypatch, tmp_path):
+    limpar_ambiente(monkeypatch)
+    from app import create_app
+    aplicacao = create_app({"DATABASE_PATH": str(tmp_path / "fallback.db")})
+    assert aplicacao.config["SQLALCHEMY_DATABASE_URI"].drivername == "sqlite"
+
+
 def test_importacao_nao_inicia_servidor(monkeypatch):
     limpar_ambiente(monkeypatch)
     modulo = importlib.import_module("app")

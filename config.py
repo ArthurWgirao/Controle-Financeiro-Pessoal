@@ -16,6 +16,7 @@ class Config:
     DATABASE_PATH = "finance.db"
     SQLALCHEMY_DATABASE_URI = None
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = False
@@ -76,6 +77,16 @@ def criar_uri_sqlite(caminho):
     return URL.create("sqlite", database=str(caminho_absoluto))
 
 
+def normalizar_url_banco(url):
+    if not isinstance(url, str):
+        return url
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://"):]
+    return url
+
+
 def configurar_uri_banco(configuracao, sobrescritas=None):
     sobrescritas = sobrescritas or {}
 
@@ -83,9 +94,9 @@ def configurar_uri_banco(configuracao, sobrescritas=None):
         return
 
     if configuracao.get("DATABASE_URL"):
-        configuracao["SQLALCHEMY_DATABASE_URI"] = configuracao[
-            "DATABASE_URL"
-        ]
+        configuracao["SQLALCHEMY_DATABASE_URI"] = normalizar_url_banco(
+            configuracao["DATABASE_URL"]
+        )
         return
 
     configuracao["SQLALCHEMY_DATABASE_URI"] = criar_uri_sqlite(
