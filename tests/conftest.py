@@ -1,14 +1,25 @@
 import hashlib
+import os
 import sqlite3
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
+# Esta barreira precisa preceder qualquer importação da aplicação.
+DATABASE_URL_DESENVOLVIMENTO = os.environ.get("DATABASE_URL")
+os.environ["APP_ENV"] = "testing"
+for variavel_banco in (
+    "DATABASE_URL", "DATABASE_PATH", "POSTGRES_TRANSFER_DATABASE_URL"
+):
+    os.environ.pop(variavel_banco, None)
+
 import pytest
+from sqlalchemy.engine import URL, make_url
 
 from extensions import db
 from models import Meta, Transacao, Usuario
+from tests.infra_postgresql import estado_postgresql_desenvolvimento
 
 
 RAIZ_PROJETO = Path(__file__).resolve().parents[1]
@@ -46,18 +57,52 @@ def proteger_banco_real():
     )
 
 
+@pytest.fixture(scope="session", autouse=True)
+def proteger_postgresql_desenvolvimento():
+    if not DATABASE_URL_DESENVOLVIMENTO:
+        yield
+        return
+    inicial = estado_postgresql_desenvolvimento(DATABASE_URL_DESENVOLVIMENTO)
+    assert inicial["revision"] == "0004_auth_ownership_required"
+    assert inicial["counts"] == (0, 0, 0)
+    yield
+    final = estado_postgresql_desenvolvimento(DATABASE_URL_DESENVOLVIMENTO)
+    assert final == inicial, (
+        "O PostgreSQL de desenvolvimento foi alterado durante os testes."
+    )
+
+
+@pytest.fixture(scope="session")
+def database_url_desenvolvimento():
+    return DATABASE_URL_DESENVOLVIMENTO
+
+
 @pytest.fixture
 def caminho_banco(tmp_path, monkeypatch):
-    caminho = tmp_path / "teste.db"
+    caminho = (tmp_path / "teste.db").resolve()
     monkeypatch.setenv("APP_ENV", "testing")
+    for variavel_banco in (
+        "DATABASE_URL", "DATABASE_PATH", "POSTGRES_TRANSFER_DATABASE_URL"
+    ):
+        monkeypatch.delenv(variavel_banco, raising=False)
     from app import create_app
 
     aplicacao = create_app({
         "TESTING": True,
         "SECRET_KEY": "chave-fixa-da-fixture-de-testes",
-        "DATABASE_PATH": str(caminho),
+        "SQLALCHEMY_DATABASE_URI": URL.create(
+            "sqlite", database=str(caminho)
+        ),
         "WTF_CSRF_ENABLED": False
     })
+    url_efetiva = make_url(aplicacao.config["SQLALCHEMY_DATABASE_URI"])
+    caminho_efetivo = Path(url_efetiva.database).resolve()
+    if url_efetiva.get_backend_name() != "sqlite":
+        raise RuntimeError("Teste comum tentou usar banco não SQLite.")
+    if caminho_efetivo == BANCO_REAL.resolve():
+        raise RuntimeError("Teste comum tentou usar o finance.db real.")
+    if not caminho_efetivo.is_relative_to(tmp_path.resolve()):
+        raise RuntimeError("SQLite de teste está fora do diretório temporário.")
     contexto = aplicacao.app_context()
     contexto.push()
     db.create_all()

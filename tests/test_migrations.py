@@ -32,8 +32,11 @@ def criar_app(caminho):
     app = create_app({
         "TESTING": True,
         "SECRET_KEY": "migracoes",
-        "DATABASE_PATH": str(caminho)
+        "SQLALCHEMY_DATABASE_URI": URL.create(
+            "sqlite", database=str(caminho)
+        )
     })
+    assert app.config["SQLALCHEMY_DATABASE_URI"].get_backend_name() == "sqlite"
     APLICACOES.append(app)
     return app
 
