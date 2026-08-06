@@ -19,7 +19,11 @@ from sqlalchemy.engine import URL, make_url
 
 from extensions import db
 from models import Meta, Transacao, Usuario
-from tests.infra_postgresql import estado_postgresql_desenvolvimento
+from tests.infra_postgresql import (
+    comparar_estados_postgresql,
+    estado_postgresql_desenvolvimento,
+    validar_estado_postgresql,
+)
 
 
 RAIZ_PROJETO = Path(__file__).resolve().parents[1]
@@ -81,13 +85,12 @@ def proteger_postgresql_desenvolvimento():
         yield
         return
     inicial = estado_postgresql_desenvolvimento(DATABASE_URL_DESENVOLVIMENTO)
-    assert inicial["revision"] == "0004_auth_ownership_required"
-    assert inicial["counts"] == (0, 0, 0)
-    yield
-    final = estado_postgresql_desenvolvimento(DATABASE_URL_DESENVOLVIMENTO)
-    assert final == inicial, (
-        "O PostgreSQL de desenvolvimento foi alterado durante os testes."
-    )
+    validar_estado_postgresql(inicial)
+    try:
+        yield
+    finally:
+        final = estado_postgresql_desenvolvimento(DATABASE_URL_DESENVOLVIMENTO)
+        comparar_estados_postgresql(inicial, final)
 
 
 @pytest.fixture(scope="session")

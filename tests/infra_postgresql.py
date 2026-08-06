@@ -15,6 +15,18 @@ from sqlalchemy import create_engine, inspect, text
 
 PREFIXO = "controle_financeiro_test_"
 SISTEMA = frozenset({"postgres", "template0", "template1"})
+REVISAO_ESPERADA = "0004_auth_ownership_required"
+TABELAS_DADOS = ("usuarios", "transacoes", "metas")
+COLUNAS_DADOS = {
+    "usuarios": ("id", "nome", "email", "senha_hash", "ativo", "criado_em"),
+    "transacoes": (
+        "id", "tipo", "valor", "categoria", "descricao", "data", "usuario_id"
+    ),
+    "metas": ("id", "categoria", "limite", "usuario_id"),
+}
+CAMPOS_SENSIVEIS = frozenset({
+    "nome", "email", "senha_hash", "tipo", "categoria", "descricao"
+})
 
 
 def validar_nome_temporario(nome, banco_desenvolvimento=None):
@@ -57,8 +69,10 @@ def estado_postgresql_desenvolvimento(url_valor):
     try:
         with engine.connect() as conexao:
             inspetor = inspect(conexao)
+            banco_atual = conexao.execute(text("SELECT current_database()")).scalar_one()
             tabelas = sorted(inspetor.get_table_names())
             schema = {}
+            schema_legado = {}
             for tabela in tabelas:
                 sequence = None
                 estado_sequence = None
@@ -77,7 +91,10 @@ def estado_postgresql_desenvolvimento(url_valor):
                     )).one())
                 schema[tabela] = {
                     "columns": tuple(
-                        (c["name"], str(c["type"]), c["nullable"])
+                        (
+                            c["name"], str(c["type"]), c["nullable"],
+                            str(c.get("default")) if c.get("default") is not None else None,
+                        )
                         for c in inspetor.get_columns(tabela)
                     ),
                     "pk": inspetor.get_pk_constraint(tabela),
@@ -88,28 +105,108 @@ def estado_postgresql_desenvolvimento(url_valor):
                     "sequence": sequence,
                     "sequence_state": estado_sequence,
                 }
+                schema_legado[tabela] = {
+                    **schema[tabela],
+                    "columns": tuple(
+                        (c["name"], str(c["type"]), c["nullable"])
+                        for c in inspetor.get_columns(tabela)
+                    ),
+                }
             canonico = json.dumps(
                 schema, sort_keys=True, default=str, separators=(",", ":")
             )
-            tabelas_dados = ("usuarios", "transacoes", "metas")
+            canonico_legado = json.dumps(
+                schema_legado, sort_keys=True, default=str, separators=(",", ":")
+            )
+            registros = {}
+            proprietarios = {}
+            for tabela, colunas in COLUNAS_DADOS.items():
+                linhas = conexao.execute(text(
+                    f"SELECT {','.join(colunas)} FROM {tabela} ORDER BY id"
+                )).mappings()
+                fingerprints = []
+                for linha in linhas:
+                    sanitizada = {
+                        coluna: (
+                            hashlib.sha256(str(linha[coluna]).encode()).hexdigest()
+                            if coluna in CAMPOS_SENSIVEIS else str(linha[coluna])
+                        )
+                        for coluna in colunas
+                    }
+                    conteudo = json.dumps(
+                        sanitizada, sort_keys=True, separators=(",", ":")
+                    )
+                    fingerprints.append((
+                        int(linha["id"]), hashlib.sha256(conteudo.encode()).hexdigest()
+                    ))
+                registros[tabela] = tuple(fingerprints)
+                if "usuario_id" in colunas:
+                    proprietarios[tabela] = tuple(conexao.execute(text(
+                        f"SELECT id, usuario_id FROM {tabela} ORDER BY id"
+                    )).tuples())
             return {
-                "database": conexao.execute(
-                    text("SELECT current_database()")
-                ).scalar_one(),
+                "database": banco_atual,
+                "dialect": conexao.dialect.name,
                 "revision": conexao.execute(text(
                     "SELECT version_num FROM alembic_version"
                 )).scalar_one(),
                 "counts": tuple(conexao.execute(
                     text(f"SELECT count(*) FROM {t}")
-                ).scalar_one() for t in tabelas_dados),
+                ).scalar_one() for t in TABELAS_DADOS),
                 "ids": tuple(tuple(conexao.execute(
                     text(f"SELECT id FROM {t} ORDER BY id")
-                ).scalars()) for t in tabelas_dados),
-                "schema_sha256": hashlib.sha256(canonico.encode()).hexdigest(),
+                ).scalars()) for t in TABELAS_DADOS),
+                "records": registros,
+                "owners": proprietarios,
+                "schema_sha256": hashlib.sha256(
+                    canonico_legado.encode()
+                ).hexdigest(),
+                "schema_persistente_sha256": hashlib.sha256(
+                    canonico.encode()
+                ).hexdigest(),
                 "schema": canonico,
             }
     finally:
         engine.dispose()
+
+
+def validar_estado_postgresql(estado, *, permitir_temporario=False):
+    if estado.get("dialect") != "postgresql":
+        raise AssertionError("O estado protegido não pertence ao PostgreSQL.")
+    banco = estado.get("database")
+    if not banco or banco in SISTEMA:
+        raise AssertionError("Banco protegido não identificado com segurança.")
+    if banco.startswith(PREFIXO) and not permitir_temporario:
+        raise AssertionError("Banco temporário não pode ser o desenvolvimento.")
+    if estado.get("revision") != REVISAO_ESPERADA:
+        raise AssertionError("Revisão inválida no PostgreSQL protegido.")
+    schema = json.loads(estado.get("schema", "{}"))
+    if not {"alembic_version", *TABELAS_DADOS} <= set(schema):
+        raise AssertionError("Schema obrigatório ilegível ou incompleto.")
+    json.dumps(estado, sort_keys=True, default=str)
+
+
+def comparar_estados_postgresql(inicial, final):
+    if inicial == final:
+        return
+    alteracoes = []
+    for chave in (
+        "database", "dialect", "revision", "counts", "ids", "owners",
+        "schema_sha256", "schema_persistente_sha256",
+    ):
+        if inicial.get(chave) != final.get(chave):
+            alteracoes.append(chave)
+    for tabela in TABELAS_DADOS:
+        antes = dict(inicial.get("records", {}).get(tabela, ()))
+        depois = dict(final.get("records", {}).get(tabela, ()))
+        ids = sorted(set(antes) | set(depois))
+        afetados = tuple(i for i in ids if antes.get(i) != depois.get(i))
+        if afetados:
+            alteracoes.append(f"registros:{tabela}:ids={afetados}")
+    if inicial.get("schema") != final.get("schema"):
+        alteracoes.append("schema")
+    mensagem = ", ".join(dict.fromkeys(alteracoes)) or "estado persistente"
+    raise AssertionError(f"PostgreSQL protegido foi alterado: {mensagem}.")
 
 
 @contextmanager
