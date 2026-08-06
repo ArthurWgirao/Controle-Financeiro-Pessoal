@@ -15,16 +15,16 @@ from transacoes import cadastrar_transacao
 from tests.infra_postgresql import banco_postgresql_temporario
 
 
-pytestmark = pytest.mark.postgresql
+pytestmark = [
+    pytest.mark.postgresql,
+    pytest.mark.usefixtures("postgres_test_admin_url"),
+]
+
+
 @pytest.fixture(scope="module")
 def url_postgresql_temporaria():
-    try:
-        with banco_postgresql_temporario() as (url, _):
-            yield url
-    except RuntimeError as erro:
-        if "não configurada" in str(erro):
-            pytest.skip(str(erro))
-        raise
+    with banco_postgresql_temporario() as (url, _):
+        yield url
 
 
 @pytest.fixture(scope="module")
