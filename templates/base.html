@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<html lang="pt-br">
+<html lang="pt-BR">
 
 <head>
 
@@ -20,44 +20,50 @@
 
 <body>
 
+    <a class="skip-link" href="#conteudo-principal">
+        Ir para o conteúdo principal
+    </a>
+
 
         <div class="sidebar">
 
         <h2>
-            💰 Finance
+            <span aria-hidden="true">💰</span> Finance
         </h2>
 
         {% if current_user.is_authenticated %}
         <p class="usuario-atual">Olá, {{ current_user.nome }}</p>
+        <nav aria-label="Navegação principal">
         <ul>
 
             <li>
-                <a href="/">📊 Dashboard</a>
+                <a href="/" {% if request.endpoint == 'dashboard' %}aria-current="page"{% endif %}><span aria-hidden="true">📊</span> Dashboard</a>
             </li>
 
             <li>
-                <a href="/receitas">💵 Receitas</a>
+                <a href="/receitas" {% if request.endpoint and request.endpoint.startswith('receita') or request.endpoint == 'nova_receita' or request.endpoint == 'editar_receita' or request.endpoint == 'excluir_receita' %}aria-current="page"{% endif %}><span aria-hidden="true">💵</span> Receitas</a>
             </li>
 
             <li>
-                <a href="/despesas">💸 Despesas</a>
+                <a href="/despesas" {% if request.endpoint and request.endpoint.startswith('despesa') or request.endpoint == 'nova_despesa' or request.endpoint == 'editar_despesa' or request.endpoint == 'excluir_despesa' %}aria-current="page"{% endif %}><span aria-hidden="true">💸</span> Despesas</a>
             </li>
 
             <li>
-                <a href="/metas">🎯 Metas</a>
+                <a href="/metas" {% if request.endpoint in ['metas', 'nova_meta', 'editar_meta', 'excluir_meta'] %}aria-current="page"{% endif %}><span aria-hidden="true">🎯</span> Metas</a>
             </li>
 
             <li>
-                <a href="/relatorios">📈 Relatórios</a>
+                <a href="/relatorios" {% if request.endpoint == 'relatorios' %}aria-current="page"{% endif %}><span aria-hidden="true">📈</span> Relatórios</a>
             </li>
 
         </ul>
+        </nav>
         <form method="POST" action="{{ url_for('logout') }}" class="form-logout">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit">Sair</button>
         </form>
         {% else %}
-        <nav class="nav-autenticacao">
+        <nav class="nav-autenticacao" aria-label="Autenticação">
             <a href="{{ url_for('login') }}">Entrar</a>
             <a href="{{ url_for('cadastro') }}">Criar conta</a>
         </nav>
@@ -66,7 +72,7 @@
     </div>
 
 
-    <main class="content">
+    <main class="content" id="conteudo-principal" tabindex="-1">
 
         {% with mensagens = get_flashed_messages(with_categories=true) %}
             {% for categoria, mensagem in mensagens %}

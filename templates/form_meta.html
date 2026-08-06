@@ -5,21 +5,21 @@
 <h1>{{ titulo }}</h1>
 
 {% if erro %}
-<p class="mensagem-erro">{{ erro }}</p>
+<p id="erro-formulario" class="mensagem-erro" role="alert">{{ erro }}</p>
 {% endif %}
 
-<form method="POST" class="formulario">
+<form method="POST" class="formulario" {% if erro %}aria-describedby="erro-formulario"{% endif %}>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
 {% if edicao %}
 
-<label>Categoria</label>
+<p class="rotulo-campo">Categoria</p>
 <p class="campo-somente-leitura">{{ meta["categoria"] }}</p>
 
 {% else %}
 
-<label>Categoria</label>
-<select name="categoria" required>
+<label for="categoria">Categoria</label>
+<select id="categoria" name="categoria" required>
     <option value="">Selecione uma categoria</option>
 
     {% for categoria in categorias %}
@@ -33,8 +33,9 @@
 
 {% endif %}
 
-<label>Limite mensal</label>
+<label for="limite">Limite mensal</label>
 <input
+id="limite"
 type="number"
 step="0.01"
 min="0.01"

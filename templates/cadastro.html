@@ -2,8 +2,8 @@
 {% block conteudo %}
 <section class="auth-card">
     <h1>Criar conta</h1>
-    {% if erro %}<div class="mensagem-erro" role="alert">{{ erro }}</div>{% endif %}
-    <form method="POST" class="formulario auth-form">
+    {% if erro %}<div id="erro-formulario" class="mensagem-erro" role="alert">{{ erro }}</div>{% endif %}
+    <form method="POST" class="formulario auth-form" {% if erro %}aria-describedby="erro-formulario"{% endif %}>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="nome">Nome</label>
         <input id="nome" name="nome" autocomplete="name" required maxlength="120" value="{{ nome }}">
