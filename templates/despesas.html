@@ -8,15 +8,21 @@
     + Nova Despesa
 </a>
 
+{% if despesas %}
+<div class="table-responsive" tabindex="0" role="region" aria-label="Lista de despesas">
 <table class="tabela">
+<caption class="sr-only">Despesas cadastradas</caption>
+<thead>
 
 <tr>
-    <th>Descrição</th>
-    <th>Categoria</th>
-    <th>Valor</th>
-    <th>Data</th>
-    <th>Ações</th>
+    <th scope="col">Descrição</th>
+    <th scope="col">Categoria</th>
+    <th scope="col">Valor</th>
+    <th scope="col">Data</th>
+    <th scope="col">Ações</th>
 </tr>
+</thead>
+<tbody>
 
 {% for despesa in despesas %}
 
@@ -41,8 +47,9 @@
 <td>
 
 <a href="/despesas/editar/{{ despesa['id'] }}"
-class="btn-editar">
-✏️
+class="btn-editar acao-icone"
+aria-label="Editar despesa: {{ despesa['descricao'] }}">
+<span aria-hidden="true">✏️</span>
 </a>
 
 <form
@@ -51,8 +58,9 @@ action="/despesas/excluir/{{ despesa['id'] }}"
 class="form-excluir"
 onsubmit="return confirm('Deseja realmente excluir esta despesa?');">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn-excluir" title="Excluir despesa">
-        🗑️
+    <button type="submit" class="btn-excluir acao-icone" title="Excluir despesa"
+    aria-label="Excluir despesa: {{ despesa['descricao'] }}">
+        <span aria-hidden="true">🗑️</span>
     </button>
 </form>
 
@@ -62,6 +70,14 @@ onsubmit="return confirm('Deseja realmente excluir esta despesa?');">
 
 {% endfor %}
 
+</tbody>
 </table>
+</div>
+{% else %}
+<div class="estado-vazio" role="status">
+    <h2>Nenhuma despesa cadastrada</h2>
+    <p>Cadastre uma despesa para começar a acompanhar seus gastos.</p>
+</div>
+{% endif %}
 
 {% endblock %}

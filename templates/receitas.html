@@ -11,15 +11,21 @@
 </a>
 
 
+{% if receitas %}
+<div class="table-responsive" tabindex="0" role="region" aria-label="Lista de receitas">
 <table class="tabela">
+<caption class="sr-only">Receitas cadastradas</caption>
+<thead>
 
 <tr>
-    <th>Descrição</th>
-    <th>Categoria</th>
-    <th>Valor</th>
-    <th>Data</th>
-    <th>Ações</th>
+    <th scope="col">Descrição</th>
+    <th scope="col">Categoria</th>
+    <th scope="col">Valor</th>
+    <th scope="col">Data</th>
+    <th scope="col">Ações</th>
 </tr>
+</thead>
+<tbody>
 
 
 {% for receita in receitas %}
@@ -48,8 +54,9 @@
 <td>
 
 <a href="/receitas/editar/{{ receita['id'] }}"
-class="btn-editar">
-✏️
+class="btn-editar acao-icone"
+aria-label="Editar receita: {{ receita['descricao'] }}">
+<span aria-hidden="true">✏️</span>
 </a>
 
 
@@ -59,8 +66,9 @@ action="/receitas/excluir/{{ receita['id'] }}"
 class="form-excluir"
 onsubmit="return confirm('Deseja realmente excluir esta receita?');">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn-excluir" title="Excluir receita">
-        🗑️
+    <button type="submit" class="btn-excluir acao-icone" title="Excluir receita"
+    aria-label="Excluir receita: {{ receita['descricao'] }}">
+        <span aria-hidden="true">🗑️</span>
     </button>
 </form>
 
@@ -73,8 +81,15 @@ onsubmit="return confirm('Deseja realmente excluir esta receita?');">
 
 {% endfor %}
 
-
+</tbody>
 </table>
+</div>
+{% else %}
+<div class="estado-vazio" role="status">
+    <h2>Nenhuma receita cadastrada</h2>
+    <p>Cadastre uma receita para começar a acompanhar suas entradas.</p>
+</div>
+{% endif %}
 
 
 {% endblock %}

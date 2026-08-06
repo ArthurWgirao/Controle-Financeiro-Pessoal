@@ -49,7 +49,7 @@
         </p>
     </div>
 
-    <div class="progresso-informacao">
+    <div class="progresso-informacao" id="progresso-meta-{{ meta['id'] }}">
         <span>Utilização</span>
         <strong>{{ "%.2f"|format(meta["percentual"]) }}%</strong>
     </div>
@@ -57,9 +57,12 @@
     <div
     class="barra-progresso"
     role="progressbar"
-    aria-valuenow="{{ meta['percentual'] }}"
+    aria-label="Utilização da meta de {{ meta['categoria'] }}"
+    aria-describedby="progresso-meta-{{ meta['id'] }}"
+    aria-valuenow="{{ meta['largura_barra'] }}"
     aria-valuemin="0"
-    aria-valuemax="100">
+    aria-valuemax="100"
+    aria-valuetext="{{ '%.2f'|format(meta['percentual']) }}% — {{ meta['situacao'] }}">
         <div
         class="barra-preenchimento"
         style="width: {{ meta['largura_barra'] }}%;">

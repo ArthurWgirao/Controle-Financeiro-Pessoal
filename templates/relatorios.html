@@ -45,7 +45,7 @@
 
 {% if erro %}
 
-<p class="mensagem-erro erro-relatorio">{{ erro }}</p>
+<p class="mensagem-erro erro-relatorio" role="alert">{{ erro }}</p>
 
 {% else %}
 
@@ -105,14 +105,16 @@
 
     <div class="relatorio-duas-colunas">
 
-        <div class="tabela-responsiva">
+        <div class="tabela-responsiva table-responsive" tabindex="0"
+        role="region" aria-label="Despesas por categoria">
             <table class="tabela">
+                <caption class="sr-only">Despesas por categoria no período selecionado</caption>
                 <thead>
                     <tr>
-                        <th>Categoria</th>
-                        <th>Total</th>
-                        <th>Percentual</th>
-                        <th>Lançamentos</th>
+                        <th scope="col">Categoria</th>
+                        <th scope="col">Total</th>
+                        <th scope="col">Percentual</th>
+                        <th scope="col">Lançamentos</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -129,7 +131,12 @@
         </div>
 
         <div class="grafico-container">
-            <canvas id="graficoCategorias"></canvas>
+            <p id="descricao-grafico-categorias" class="sr-only">
+                Gráfico de despesas por categoria no período selecionado. Os mesmos dados estão disponíveis na tabela ao lado.
+            </p>
+            <canvas id="graficoCategorias" role="img"
+            aria-label="Despesas por categoria"
+            aria-describedby="descricao-grafico-categorias"></canvas>
         </div>
 
     </div>
@@ -148,7 +155,12 @@
     <h2>Evolução financeira — últimos seis meses</h2>
 
     <div class="grafico-container grafico-evolucao">
-        <canvas id="graficoEvolucao"></canvas>
+        <p id="descricao-grafico-evolucao" class="sr-only">
+            Gráfico da evolução de receitas, despesas e saldo nos últimos seis meses.
+        </p>
+        <canvas id="graficoEvolucao" role="img"
+        aria-label="Evolução financeira dos últimos seis meses"
+        aria-describedby="descricao-grafico-evolucao"></canvas>
     </div>
 </section>
 
