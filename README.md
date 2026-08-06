@@ -1,95 +1,75 @@
 <div align="center">
 
-# 💰 Controle Financeiro Pessoal
+# Controle Financeiro Pessoal
 
-### Uma aplicação web para organizar finanças, acompanhar resultados e transformar dados em decisões mais conscientes.
+<p><strong>Uma aplicação web multiusuário para organizar receitas, despesas e metas e transformar movimentações em uma visão clara do orçamento.</strong></p>
 
-![Python](https://img.shields.io/badge/Python-Backend-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-Web-000000?style=for-the-badge&logo=flask&logoColor=white)
-![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-ORM-D71F00?style=for-the-badge&logo=sqlalchemy&logoColor=white)
-![Pytest](https://img.shields.io/badge/Pytest-Tests-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)
-![Status](https://img.shields.io/badge/Status-Em%20desenvolvimento-F2C94C?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-Backend-3776AB?style=flat-square&logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-Web-000000?style=flat-square&logo=flask&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Banco%20principal-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Em%20desenvolvimento-F2C94C?style=flat-square)
 
 </div>
 
----
+## Visão geral
 
-## 📌 Sobre o projeto
+O **Controle Financeiro Pessoal** centraliza as principais informações do orçamento em uma interface simples. Cada pessoa acessa apenas os dados de sua própria conta e pode acompanhar entradas, gastos, limites mensais e resultados por período para tomar decisões financeiras mais conscientes.
 
-O **Controle Financeiro Pessoal** é uma aplicação desenvolvida para facilitar o registro, a organização e a análise de movimentações financeiras.
+## Principais funcionalidades
 
-Mais do que armazenar receitas e despesas, o projeto busca apresentar as informações de forma clara por meio de indicadores, metas, relatórios e visualizações. Dessa forma, o usuário consegue compreender melhor seus hábitos financeiros e acompanhar sua evolução ao longo do tempo.
+- cadastro, login e logout de usuários;
+- gerenciamento de receitas e despesas com categorias predefinidas;
+- dashboard com saldo e totais financeiros;
+- criação e acompanhamento de metas mensais por categoria;
+- relatórios por período e gráficos de evolução financeira;
+- isolamento dos dados de cada usuário;
+- validações no servidor e mensagens de erro compreensíveis.
 
-O sistema também representa a evolução de um projeto prático de desenvolvimento de software: começou como uma solução executada pelo terminal e ganhou uma interface web, persistência estruturada, visualizações e uma arquitetura preparada para continuar crescendo.
+## Diferenciais técnicos
 
-## 💡 Motivação
+- Application Factory e configuração por ambiente;
+- autenticação com Flask-Login e proteção CSRF com Flask-WTF;
+- autorização por usuário em consultas e operações financeiras;
+- persistência com SQLAlchemy e migrations Alembic/Flask-Migrate;
+- PostgreSQL como banco principal, executado localmente com Docker Compose;
+- compatibilidade preservada com SQLite e histórico de migração reproduzível;
+- ferramenta dedicada para transferência validada de dados entre SQLite e PostgreSQL;
+- testes automatizados isolados, incluindo cenários com bancos temporários protegidos.
 
-Controlar as finanças pessoais nem sempre significa apenas anotar valores. Também é necessário entender para onde o dinheiro está indo, comparar períodos e perceber quando os gastos se aproximam dos limites definidos.
+## Arquitetura
 
-Este projeto nasceu para reunir essas necessidades em um único ambiente, oferecendo uma visão simples e organizada da vida financeira. Ao mesmo tempo, tornou-se uma oportunidade de aplicar conhecimentos de programação e dados na construção de um produto próximo de uma situação real.
+As rotas Flask coordenam módulos de autenticação, transações, metas, relatórios e validações. Modelos SQLAlchemy representam os dados financeiros, enquanto migrations versionadas mantêm a evolução do schema e templates Jinja compõem a interface web.
 
-## ✨ Principais recursos
+O PostgreSQL é a persistência principal do ambiente local. A suíte de testes utiliza bancos isolados e mecanismos de proteção para não alterar dados persistentes durante as verificações.
 
-- Gerenciamento de receitas e despesas;
-- Organização das movimentações por categorias;
-- Dashboard com indicadores financeiros;
-- Definição e acompanhamento de metas de gastos;
-- Relatórios por período e categoria;
-- Gráficos para análise da evolução financeira;
-- Validações para garantir a consistência dos dados;
-- Persistência de dados com ORM e migrações versionadas;
-- Configurações separadas por ambiente;
-- Suíte de testes automatizados.
-
-## 🎯 Proposta
-
-O projeto busca unir desenvolvimento de software e análise de dados para oferecer uma experiência financeira clara e útil. Entre seus principais propósitos estão:
-
-- aplicar conceitos de Python em um problema real;
-- desenvolver uma aplicação web completa e evolutiva;
-- praticar modelagem e manipulação de dados;
-- construir indicadores e visualizações úteis;
-- adotar boas práticas de organização, validação e testes;
-- construir uma base capaz de evoluir para uma aplicação disponível na nuvem.
-
-## 🧰 Tecnologias
+## Tecnologias
 
 | Área | Tecnologias |
 |---|---|
-| Back-end | Python e Flask |
-| Persistência | SQLAlchemy e Alembic/Flask-Migrate |
-| Banco de dados | SQLite em desenvolvimento, com arquitetura preparada para outros bancos relacionais |
-| Front-end | HTML, CSS, JavaScript e Jinja |
-| Visualização | Chart.js e Matplotlib |
-| Qualidade | Pytest e cobertura de testes |
-| Versionamento | Git e GitHub |
+| Back-end | Python, Flask e Flask-Login |
+| Segurança web | Flask-WTF e CSRF |
+| Persistência | SQLAlchemy, Alembic e Flask-Migrate |
+| Bancos de dados | PostgreSQL e SQLite |
+| Interface | Jinja, HTML, CSS, JavaScript e Chart.js |
+| Ambiente local | Docker Compose |
+| Qualidade | Pytest |
 
-## 🏗️ Diferenciais técnicos
+O projeto também preserva uma interface legada de terminal, que utiliza Matplotlib para uma visualização local de despesas.
 
-A aplicação é organizada com separação entre interface web, regras de negócio, validações, modelos e persistência. Essa divisão reduz acoplamentos e permite que o sistema evolua sem depender de uma reconstrução completa.
+## Qualidade e segurança
 
-Entre as práticas adotadas estão:
+As senhas são armazenadas como hash, os formulários mutáveis recebem proteção CSRF e as consultas financeiras aplicam isolamento por usuário. Valores monetários são validados no servidor e tratados com `Decimal`, enquanto migrations e testes com bancos temporários ajudam a preservar a consistência entre SQLite e PostgreSQL e a impedir operações cruzadas entre contas.
 
-- Application Factory do Flask;
-- configurações por ambiente e variáveis de ambiente;
-- modelos de dados com SQLAlchemy;
-- migrações de banco versionadas;
-- operações financeiras com precisão decimal;
-- datas tratadas com tipos apropriados;
-- consultas e regras de negócio desacopladas das rotas;
-- testes isolados com bancos temporários;
-- proteção do banco utilizado em desenvolvimento.
+## Execução local
 
-## 📊 Visão do produto
+As dependências estão declaradas nos arquivos de requirements, as configurações esperadas são exemplificadas em `.env.example` e o PostgreSQL local pode ser iniciado com o `compose.yaml`. As migrations preparam o schema; procedimentos operacionais específicos permanecem documentados em `docs/`.
 
-O sistema foi pensado para evoluir de maneira incremental, mantendo o foco em usabilidade, segurança, qualidade dos dados e clareza das informações. Sua arquitetura permite que novas funcionalidades e integrações sejam incorporadas à medida que o produto amadurece.
+## Situação do projeto
 
-## 🚧 Status
+A aplicação web está funcional localmente, com PostgreSQL como banco principal. O SQLite permanece disponível como compatibilidade controlada e recurso de recuperação. A próxima fase é preparar a aplicação para um deploy público com configuração e infraestrutura próprias de produção.
 
-O projeto está em desenvolvimento contínuo. Na versão final, este espaço será complementado com demonstração, capturas da interface e acesso à aplicação publicada.
-
-## 👨‍💻 Autor
+## Autor
 
 Desenvolvido por **Arthur Girão**.
 
-[![GitHub](https://img.shields.io/badge/GitHub-ArthurWgirao-181717?style=for-the-badge&logo=github)](https://github.com/ArthurWgirao)
+[GitHub — ArthurWgirao](https://github.com/ArthurWgirao)
