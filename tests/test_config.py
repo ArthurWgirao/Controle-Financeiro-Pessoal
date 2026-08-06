@@ -7,6 +7,7 @@ from config import CHAVE_DESENVOLVIMENTO
 
 
 def limpar_ambiente(monkeypatch):
+    monkeypatch.setenv("PYTHON_DOTENV_DISABLED", "1")
     for nome in [
         "APP_ENV", "SECRET_KEY", "DATABASE_PATH", "DATABASE_URL"
     ]:
@@ -22,6 +23,12 @@ def test_ambiente_padrao_e_desenvolvimento(monkeypatch):
     assert aplicacao.debug is False
     assert aplicacao.secret_key == CHAVE_DESENVOLVIMENTO
     assert aplicacao.config["DATABASE_PATH"] == "finance.db"
+    assert aplicacao.config["SESSION_COOKIE_SECURE"] is False
+    assert aplicacao.config["REMEMBER_COOKIE_SECURE"] is False
+    assert aplicacao.config["SESSION_COOKIE_HTTPONLY"] is True
+    assert aplicacao.config["REMEMBER_COOKIE_HTTPONLY"] is True
+    assert aplicacao.config["SESSION_COOKIE_SAMESITE"] == "Lax"
+    assert aplicacao.config["REMEMBER_COOKIE_SAMESITE"] == "Lax"
 
 
 def test_ambiente_testing(monkeypatch, tmp_path):
@@ -33,6 +40,12 @@ def test_ambiente_testing(monkeypatch, tmp_path):
     aplicacao = create_app()
     assert aplicacao.testing is True
     assert aplicacao.secret_key == "chave-fixa-exclusiva-para-testes"
+    assert aplicacao.config["SESSION_COOKIE_SECURE"] is False
+    assert aplicacao.config["REMEMBER_COOKIE_SECURE"] is False
+    assert aplicacao.config["SESSION_COOKIE_HTTPONLY"] is True
+    assert aplicacao.config["REMEMBER_COOKIE_HTTPONLY"] is True
+    assert aplicacao.config["SESSION_COOKIE_SAMESITE"] == "Lax"
+    assert aplicacao.config["REMEMBER_COOKIE_SAMESITE"] == "Lax"
 
 
 def test_app_env_invalido_falha_com_mensagem(monkeypatch):
@@ -105,7 +118,6 @@ def test_producao_rejeita_chave_de_desenvolvimento(monkeypatch):
 
 def test_producao_com_chave_valida_e_debug_desativado(
     monkeypatch,
-    tmp_path
 ):
     limpar_ambiente(monkeypatch)
     monkeypatch.setenv("APP_ENV", "production")
@@ -113,12 +125,25 @@ def test_producao_com_chave_valida_e_debug_desativado(
 
     aplicacao = create_app({
         "SECRET_KEY": "uma-chave-segura-de-producao",
-        "DATABASE_PATH": str(tmp_path / "producao.db"),
-        "DEBUG": True
+        "SQLALCHEMY_DATABASE_URI": "postgresql://usuario:senha@inacessivel.example/producao",
+        "DEBUG": True,
+        "TESTING": True,
+        "SESSION_COOKIE_SECURE": False,
+        "SESSION_COOKIE_HTTPONLY": False,
+        "SESSION_COOKIE_SAMESITE": None,
+        "REMEMBER_COOKIE_SECURE": False,
+        "REMEMBER_COOKIE_HTTPONLY": False,
+        "REMEMBER_COOKIE_SAMESITE": None,
     })
     assert aplicacao.secret_key == "uma-chave-segura-de-producao"
     assert aplicacao.testing is False
     assert aplicacao.debug is False
+    assert aplicacao.config["SESSION_COOKIE_SECURE"] is True
+    assert aplicacao.config["SESSION_COOKIE_HTTPONLY"] is True
+    assert aplicacao.config["SESSION_COOKIE_SAMESITE"] == "Lax"
+    assert aplicacao.config["REMEMBER_COOKIE_SECURE"] is True
+    assert aplicacao.config["REMEMBER_COOKIE_HTTPONLY"] is True
+    assert aplicacao.config["REMEMBER_COOKIE_SAMESITE"] == "Lax"
 
 
 def test_factory_nao_cria_banco_antes_do_request(
@@ -280,3 +305,173 @@ def test_importacao_nao_inicia_servidor(monkeypatch):
 
     monkeypatch.setattr(modulo.app, "run", falhar)
     assert modulo.app.name == "app"
+
+
+def test_producao_sem_postgresql_rejeita_fallback_sqlite(
+    monkeypatch,
+    tmp_path
+):
+    limpar_ambiente(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", "chave-segura-de-producao")
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "nao-criar.db"))
+    from app import create_app
+
+    with pytest.raises(RuntimeError, match="URI PostgreSQL válida"):
+        create_app()
+    assert not (tmp_path / "nao-criar.db").exists()
+
+
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "",
+        "   ",
+        "sqlite:///producao.db",
+        "mysql+pymysql://usuario:senha@host/banco",
+        "://senha-supersecreta@host/banco",
+    ]
+)
+def test_producao_rejeita_database_url_invalida(
+    monkeypatch,
+    database_url
+):
+    limpar_ambiente(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", "chave-segura-de-producao")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    from app import create_app
+
+    with pytest.raises(RuntimeError, match="URI PostgreSQL válida") as erro:
+        create_app()
+    assert "senha-supersecreta" not in str(erro.value)
+    if database_url:
+        assert database_url not in str(erro.value)
+
+
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "postgres://usuario:senha@inacessivel.example/banco",
+        "postgresql://usuario:senha@inacessivel.example/banco",
+        "postgresql+psycopg://usuario:senha@inacessivel.example/banco",
+        (
+            "postgresql://usuario:p%40ss%3Aword@inacessivel.example/"
+            "banco?sslmode=require"
+        ),
+    ]
+)
+def test_producao_aceita_formatos_postgresql_sem_conectar(
+    monkeypatch,
+    database_url
+):
+    limpar_ambiente(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", "chave-segura-de-producao")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    import psycopg
+    from app import create_app
+
+    monkeypatch.setattr(
+        psycopg,
+        "connect",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("A factory não deve abrir conexão.")
+        )
+    )
+    aplicacao = create_app()
+    uri = aplicacao.config["SQLALCHEMY_DATABASE_URI"]
+    assert uri.startswith("postgresql+psycopg://")
+
+
+def test_producao_aceita_override_postgresql_explicito(monkeypatch):
+    limpar_ambiente(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "production")
+    from app import create_app
+
+    aplicacao = create_app({
+        "SECRET_KEY": "chave-segura-de-producao",
+        "SQLALCHEMY_DATABASE_URI": (
+            "postgresql://usuario:senha@inacessivel.example/integracao"
+        )
+    })
+    assert str(aplicacao.config["SQLALCHEMY_DATABASE_URI"]).startswith(
+        "postgresql+psycopg://"
+    )
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"DATABASE_URL": "sqlite:///override.db"},
+        {"SQLALCHEMY_DATABASE_URI": "sqlite:///override.db"},
+        {"SQLALCHEMY_DATABASE_URI": ""},
+    ]
+)
+def test_override_final_nao_substitui_postgresql_por_sqlite_ou_vazio(
+    monkeypatch,
+    override
+):
+    limpar_ambiente(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", "chave-segura-de-producao")
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://usuario:senha@inacessivel.example/principal"
+    )
+    from app import create_app
+
+    with pytest.raises(RuntimeError, match="URI PostgreSQL válida"):
+        create_app(override)
+
+
+def test_uri_invalida_falha_antes_de_inicializar_extensao(monkeypatch):
+    limpar_ambiente(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", "chave-segura-de-producao")
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///proibido.db")
+    from app import create_app
+    from extensions import db
+
+    monkeypatch.setattr(
+        db,
+        "init_app",
+        lambda app: (_ for _ in ()).throw(
+            AssertionError("Extensão não deve ser inicializada.")
+        )
+    )
+    with pytest.raises(RuntimeError, match="URI PostgreSQL válida"):
+        create_app()
+
+
+def test_desenvolvimento_permite_override_consciente_de_cookie(monkeypatch):
+    limpar_ambiente(monkeypatch)
+    from app import create_app
+
+    aplicacao = create_app({
+        "SESSION_COOKIE_SECURE": True,
+        "REMEMBER_COOKIE_SECURE": True,
+    })
+    assert aplicacao.config["SESSION_COOKIE_SECURE"] is True
+    assert aplicacao.config["REMEMBER_COOKIE_SECURE"] is True
+
+
+def test_testing_aceita_sqlite_explicito_sem_criar_arquivo(
+    monkeypatch,
+    tmp_path
+):
+    limpar_ambiente(monkeypatch)
+    monkeypatch.setenv("APP_ENV", "testing")
+    caminho = tmp_path / "testing-explicito.db"
+    from sqlalchemy.engine import URL
+    from app import create_app
+
+    aplicacao = create_app({
+        "SQLALCHEMY_DATABASE_URI": URL.create(
+            "sqlite", database=str(caminho)
+        )
+    })
+    assert aplicacao.testing is True
+    assert aplicacao.config["SESSION_COOKIE_SECURE"] is False
+    assert aplicacao.config["REMEMBER_COOKIE_SECURE"] is False
+    assert not caminho.exists()
