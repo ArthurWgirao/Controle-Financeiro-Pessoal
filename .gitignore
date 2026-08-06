@@ -7,3 +7,8 @@ htmlcov/
 .env
 .env.postgres.local
 .venv/
+*.log
+*.dump
+backups/
+.DS_Store
+Thumbs.db
