@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -8,6 +9,24 @@ from extensions import db
 from models import Meta, Transacao
 from transacoes import escolher_categoria
 from utils import ler_float, ler_int
+
+
+class MetaDuplicadaError(Exception):
+    """Indica conflito com a meta única do usuário para a categoria."""
+
+
+def _violou_unicidade_da_meta(erro):
+    origem = erro.orig
+    diagnostico = getattr(origem, "diag", None)
+    if (
+        getattr(diagnostico, "constraint_name", None)
+        == "uq_metas_usuario_categoria"
+    ):
+        return True
+    return (
+        getattr(origem, "sqlite_errorcode", None)
+        == sqlite3.SQLITE_CONSTRAINT_UNIQUE
+    )
 
 
 def _confirmar():
@@ -74,8 +93,13 @@ def cadastrar_meta(categoria, limite, usuario_id):
     db.session.add(meta)
     try:
         db.session.commit()
-    except IntegrityError:
+    except IntegrityError as erro:
         db.session.rollback()
+        if (
+            _violou_unicidade_da_meta(erro)
+            and categoria_possui_meta(categoria, usuario_id)
+        ):
+            raise MetaDuplicadaError() from None
         raise
     return meta.id
 
