@@ -72,4 +72,4 @@ A aplicação web está funcional localmente, com PostgreSQL como banco principa
 
 Desenvolvido por **Arthur Girão**.
 
-[GitHub — ArthurWgirao](https://github.com/ArthurWgirao)
+[![GitHub](https://img.shields.io/badge/ArthurWgirao-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/ArthurWgirao)
