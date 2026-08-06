@@ -1,8 +1,12 @@
 from datetime import datetime
 
 import pytest
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 import metas
+from extensions import db
+from models import Meta
 
 
 def test_funcoes_de_persistencia_de_meta(caminho_banco, usuario):
@@ -94,6 +98,99 @@ def test_cadastro_web_de_meta_e_duplicidade(cliente, conexao_banco):
     assert resposta.status_code == 400
     assert "Já existe" in resposta.get_data(as_text=True)
     assert len(conexao_banco("SELECT * FROM metas")) == 1
+
+
+def test_servico_converte_duplicidade_e_recupera_sessao(
+    caminho_banco,
+    usuario
+):
+    primeiro_id = metas.cadastrar_meta("Comida", 100, usuario.id)
+
+    with pytest.raises(metas.MetaDuplicadaError):
+        metas.cadastrar_meta("Comida", 200, usuario.id)
+
+    assert db.session.scalar(
+        select(func.count()).select_from(Meta).where(
+            Meta.usuario_id == usuario.id,
+            Meta.categoria == "Comida"
+        )
+    ) == 1
+    assert db.session.get(Meta, primeiro_id).limite == 100
+
+    segundo_id = metas.cadastrar_meta("Lazer", 300, usuario.id)
+    assert db.session.get(Meta, segundo_id).categoria == "Lazer"
+
+
+def test_mesma_categoria_permitida_para_usuarios_diferentes(
+    caminho_banco,
+    usuario,
+    segundo_usuario
+):
+    metas.cadastrar_meta("Comida", 100, usuario.id)
+    metas.cadastrar_meta("Comida", 200, segundo_usuario.id)
+
+    registros = db.session.scalars(
+        select(Meta).where(Meta.categoria == "Comida").order_by(Meta.id)
+    ).all()
+    assert [meta.usuario_id for meta in registros] == [
+        usuario.id,
+        segundo_usuario.id
+    ]
+
+
+def test_integrity_error_nao_relacionada_nao_e_mascarada(
+    caminho_banco,
+    usuario,
+    monkeypatch
+):
+    metas.cadastrar_meta("Educação", 80, usuario.id)
+    erro_original = IntegrityError(
+        "falha simulada",
+        {},
+        RuntimeError("integridade não relacionada")
+    )
+    rollback_original = db.session.rollback
+    rollback_executado = False
+
+    def registrar_rollback():
+        nonlocal rollback_executado
+        rollback_executado = True
+        rollback_original()
+
+    monkeypatch.setattr(db.session, "commit", lambda: (_ for _ in ()).throw(
+        erro_original
+    ))
+    monkeypatch.setattr(db.session, "rollback", registrar_rollback)
+
+    with pytest.raises(IntegrityError) as capturada:
+        metas.cadastrar_meta("Educação", 100, usuario.id)
+
+    assert capturada.value is erro_original
+    assert rollback_executado
+    assert metas.categoria_possui_meta("Educação", usuario.id)
+
+
+def test_rota_trata_janela_de_corrida_sem_erro_500(
+    cliente,
+    inserir_meta,
+    conexao_banco,
+    monkeypatch
+):
+    inserir_meta(categoria="Comida", limite=100)
+    monkeypatch.setattr("app.categoria_possui_meta", lambda *args: False)
+
+    resposta = cliente.post(
+        "/metas/nova",
+        data={"categoria": "Comida", "limite": "275.50"}
+    )
+    html = resposta.get_data(as_text=True)
+
+    assert resposta.status_code == 400
+    assert "Já existe uma meta para esta categoria." in html
+    assert 'value="275.50"' in html
+    assert 'value="Comida"' in html
+    assert len(conexao_banco("SELECT * FROM metas")) == 1
+    assert db.session.scalar(select(func.count()).select_from(Meta)) == 1
 
 
 @pytest.mark.parametrize("limite", ["", "0", "-1", "texto", "inf", "NaN"])

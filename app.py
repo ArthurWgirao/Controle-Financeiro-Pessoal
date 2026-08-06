@@ -22,6 +22,7 @@ from extensions import csrf, db, login_manager, migrate
 from models import Meta, Transacao, Usuario
 from sqlalchemy import select
 from metas import (
+    MetaDuplicadaError,
     atualizar_limite_meta,
     buscar_meta_por_id,
     cadastrar_meta,
@@ -387,6 +388,12 @@ def nova_meta():
         if not erro and categoria_possui_meta(categoria, current_user.id):
             erro = "Já existe uma meta para esta categoria."
 
+        if not erro:
+            try:
+                cadastrar_meta(categoria, limite, current_user.id)
+            except MetaDuplicadaError:
+                erro = "Já existe uma meta para esta categoria."
+
         if erro:
             return render_template(
                 "form_meta.html",
@@ -396,8 +403,6 @@ def nova_meta():
                 erro=erro,
                 edicao=False
             ), 400
-
-        cadastrar_meta(categoria, limite, current_user.id)
 
         return redirect("/metas")
 

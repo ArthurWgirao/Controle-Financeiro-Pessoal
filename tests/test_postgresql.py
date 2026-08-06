@@ -4,12 +4,12 @@ from decimal import Decimal
 
 import pytest
 from flask import g
-from sqlalchemy import inspect, select, text
+from sqlalchemy import func, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 
 from autenticacao import autenticar_usuario, cadastrar_usuario
 from extensions import db
-from metas import cadastrar_meta
+from metas import MetaDuplicadaError, cadastrar_meta
 from models import Meta, Transacao, Usuario
 from transacoes import cadastrar_transacao
 from tests.infra_postgresql import banco_postgresql_temporario
@@ -130,3 +130,27 @@ def test_postgresql_isolamento_rotas_relatorios_e_csrf(app_postgresql):
         "senha": "senha-segura",
     }).status_code == 302
     app_postgresql.config["WTF_CSRF_ENABLED"] = False
+
+
+def test_postgresql_meta_duplicada_recupera_sessao(app_postgresql):
+    primeiro, segundo = db.session.scalars(
+        select(Usuario).order_by(Usuario.id)
+    ).all()
+    cadastrar_meta("Educação", Decimal("300.00"), primeiro.id)
+
+    with pytest.raises(MetaDuplicadaError):
+        cadastrar_meta("Educação", Decimal("400.00"), primeiro.id)
+
+    assert db.session.scalar(
+        select(func.count()).select_from(Meta).where(
+            Meta.usuario_id == primeiro.id,
+            Meta.categoria == "Educação"
+        )
+    ) == 1
+
+    cadastrar_meta("Educação", Decimal("500.00"), segundo.id)
+    assert db.session.scalar(
+        select(func.count()).select_from(Meta).where(
+            Meta.categoria == "Educação"
+        )
+    ) == 2
