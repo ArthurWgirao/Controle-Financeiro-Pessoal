@@ -16,7 +16,12 @@ from app import create_app
 from extensions import db
 from migracao_dados import ErroConflito, PONTOS_FALHA, transferir
 from tests.infra_postgresql import banco_postgresql_temporario as banco_seguro
-pytestmark = pytest.mark.postgresql
+pytestmark = [
+    pytest.mark.postgresql,
+    pytest.mark.usefixtures("postgres_test_admin_url"),
+]
+
+
 def hash_arquivo(caminho):
     return hashlib.sha256(Path(caminho).read_bytes()).hexdigest()
 
@@ -71,26 +76,21 @@ def origem_generica(tmp_path_factory):
 
 @contextmanager
 def banco_postgresql_temporario():
-    try:
-        with banco_seguro() as (url, _):
-            app = create_app({
-                "TESTING": True,
-                "SECRET_KEY": "transferencia-generica",
-                "WTF_CSRF_ENABLED": False,
-                "SQLALCHEMY_DATABASE_URI": url,
-            })
-            resultado = app.test_cli_runner().invoke(args=["db", "upgrade"])
-            assert resultado.exit_code == 0, resultado.output
-            try:
-                yield url, app
-            finally:
-                with app.app_context():
-                    db.session.remove()
-                    db.engine.dispose()
-    except RuntimeError as erro:
-        if "não configurada" in str(erro):
-            pytest.skip(str(erro))
-        raise
+    with banco_seguro() as (url, _):
+        app = create_app({
+            "TESTING": True,
+            "SECRET_KEY": "transferencia-generica",
+            "WTF_CSRF_ENABLED": False,
+            "SQLALCHEMY_DATABASE_URI": url,
+        })
+        resultado = app.test_cli_runner().invoke(args=["db", "upgrade"])
+        assert resultado.exit_code == 0, resultado.output
+        try:
+            yield url, app
+        finally:
+            with app.app_context():
+                db.session.remove()
+                db.engine.dispose()
 
 
 def estado_destino(url):

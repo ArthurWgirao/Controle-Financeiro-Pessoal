@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL, make_url
 
 from tests.infra_postgresql import (
+    _configuracao_admin,
     banco_postgresql_temporario,
     validar_nome_temporario,
 )
@@ -81,7 +82,9 @@ def test_url_administrativa_no_banco_de_desenvolvimento_e_recusada(
 
 
 @pytest.mark.postgresql
-def test_execucoes_consecutivas_e_falha_nao_deixam_bancos_residuais():
+def test_execucoes_consecutivas_e_falha_nao_deixam_bancos_residuais(
+    postgres_test_admin_url
+):
     nomes = []
     with pytest.raises(ValueError, match="falha genérica"):
         with banco_postgresql_temporario() as (_, nome):
@@ -91,10 +94,7 @@ def test_execucoes_consecutivas_e_falha_nao_deixam_bancos_residuais():
         nomes.append(nome)
     assert len(set(nomes)) == 2
 
-    admin = os.getenv("POSTGRES_TEST_ADMIN_URL")
-    if not admin:
-        pytest.skip("POSTGRES_TEST_ADMIN_URL não configurada")
-    engine = create_engine(admin)
+    engine = create_engine(postgres_test_admin_url)
     try:
         with engine.connect() as conexao:
             restantes = conexao.execute(text(
@@ -103,3 +103,24 @@ def test_execucoes_consecutivas_e_falha_nao_deixam_bancos_residuais():
             assert restantes == []
     finally:
         engine.dispose()
+
+
+def test_configuracao_admin_ausente_falha_antes_de_conectar(monkeypatch):
+    monkeypatch.delenv("POSTGRES_TEST_ADMIN_URL", raising=False)
+    chamadas = []
+
+    def conectar_proibido(*args, **kwargs):
+        chamadas.append((args, kwargs))
+        raise AssertionError("Conexão PostgreSQL não deveria ser tentada")
+
+    monkeypatch.setattr("tests.infra_postgresql.psycopg.connect", conectar_proibido)
+    with pytest.raises(RuntimeError, match="não configurada"):
+        _configuracao_admin()
+    assert chamadas == []
+
+
+def test_configuracao_admin_presente_invalida_nao_vira_skip(monkeypatch):
+    monkeypatch.setenv("POSTGRES_TEST_ADMIN_URL", "postgresql+psycopg:///")
+    monkeypatch.setenv("POSTGRES_DB", "controle_financeiro")
+    with pytest.raises(RuntimeError, match="URL administrativa de testes inválida"):
+        _configuracao_admin()

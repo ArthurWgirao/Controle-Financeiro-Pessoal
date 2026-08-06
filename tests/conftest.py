@@ -35,6 +35,24 @@ def pytest_configure(config):
         )
 
 
+def pytest_collection_modifyitems(config, items):
+    if os.getenv("POSTGRES_TEST_ADMIN_URL"):
+        return
+    motivo = "POSTGRES_TEST_ADMIN_URL não configurada."
+    marcador_skip = pytest.mark.skip(reason=motivo)
+    for item in items:
+        if item.get_closest_marker("postgresql"):
+            item.add_marker(marcador_skip)
+
+
+@pytest.fixture(scope="session")
+def postgres_test_admin_url():
+    valor = os.getenv("POSTGRES_TEST_ADMIN_URL")
+    if not valor:
+        pytest.skip("POSTGRES_TEST_ADMIN_URL não configurada.")
+    return valor
+
+
 def calcular_hash(caminho):
     if not caminho.exists():
         return None
