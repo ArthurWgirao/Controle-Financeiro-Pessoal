@@ -2,7 +2,8 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
-from sqlalchemy.engine import URL
+from sqlalchemy.engine import URL, make_url
+from sqlalchemy.exc import ArgumentError
 
 
 CHAVE_DESENVOLVIMENTO = "chave-local-insegura-de-desenvolvimento"
@@ -20,6 +21,9 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = False
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_SECURE = False
     PERMANENT_SESSION_LIFETIME = timedelta(days=30)
     WTF_CSRF_ENABLED = True
 
@@ -90,7 +94,10 @@ def normalizar_url_banco(url):
 def configurar_uri_banco(configuracao, sobrescritas=None):
     sobrescritas = sobrescritas or {}
 
-    if sobrescritas.get("SQLALCHEMY_DATABASE_URI"):
+    if "SQLALCHEMY_DATABASE_URI" in sobrescritas:
+        configuracao["SQLALCHEMY_DATABASE_URI"] = normalizar_url_banco(
+            sobrescritas["SQLALCHEMY_DATABASE_URI"]
+        )
         return
 
     if configuracao.get("DATABASE_URL"):
@@ -112,4 +119,29 @@ def validar_configuracao_producao(configuracao):
             "SECRET_KEY segura é obrigatória no ambiente de produção."
         )
 
+    uri = configuracao.get("SQLALCHEMY_DATABASE_URI")
+    try:
+        if (
+            uri is None
+            or isinstance(uri, str) and (
+                not uri.strip()
+                or any(caractere.isspace() for caractere in uri)
+            )
+        ):
+            raise ArgumentError("URI ausente ou com espaços.")
+        url = make_url(uri)
+        if url.drivername != "postgresql+psycopg" or not url.database:
+            raise ArgumentError("URI não pertence ao PostgreSQL com psycopg.")
+    except (ArgumentError, TypeError, ValueError):
+        raise RuntimeError(
+            "Produção exige uma URI PostgreSQL válida."
+        ) from None
+
+    configuracao["TESTING"] = False
     configuracao["DEBUG"] = False
+    configuracao["SESSION_COOKIE_SECURE"] = True
+    configuracao["SESSION_COOKIE_HTTPONLY"] = True
+    configuracao["SESSION_COOKIE_SAMESITE"] = "Lax"
+    configuracao["REMEMBER_COOKIE_SECURE"] = True
+    configuracao["REMEMBER_COOKIE_HTTPONLY"] = True
+    configuracao["REMEMBER_COOKIE_SAMESITE"] = "Lax"
