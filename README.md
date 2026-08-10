@@ -7,7 +7,7 @@
 ![Python](https://img.shields.io/badge/Python-Backend-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-Web-000000?style=flat-square&logo=flask&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Banco%20principal-4169E1?style=flat-square&logo=postgresql&logoColor=white)
-![Status](https://img.shields.io/badge/Status-Em%20desenvolvimento-F2C94C?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Vers%C3%A3o%20local%20conclu%C3%ADda-2EA44F?style=flat-square)
 
 </div>
 
@@ -66,7 +66,9 @@ As dependências estão declaradas nos arquivos de requirements, as configuraç�
 
 ## Situação do projeto
 
-A aplicação web está funcional localmente, com PostgreSQL como banco principal. O SQLite permanece disponível como compatibilidade controlada e recurso de recuperação. A próxima fase é preparar a aplicação para um deploy público com configuração e infraestrutura próprias de produção.
+A versão local da aplicação está concluída, funcional e validada com PostgreSQL como banco principal. O SQLite permanece disponível como compatibilidade controlada e recurso de recuperação.
+
+O código está preparado para apresentação pública no GitHub. Um futuro deploy em nuvem e uma página demonstrativa no GitHub Pages fazem parte das próximas possibilidades de evolução.
 
 ## Autor
 
