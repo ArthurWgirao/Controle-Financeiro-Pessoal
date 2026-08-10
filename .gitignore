@@ -12,3 +12,11 @@ htmlcov/
 backups/
 .DS_Store
 Thumbs.db
+*.sqlite
+*.sqlite3
+*.sql
+*.bundle
+.env.*
+!.env.example
+.vscode/
+.idea/
