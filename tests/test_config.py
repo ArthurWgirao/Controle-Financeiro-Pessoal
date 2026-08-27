@@ -245,7 +245,8 @@ def test_todas_as_rotas_e_metodos_foram_preservados(
         if regra.endpoint != "static"
     }
     assert regras == {
-        ("/", ("GET",)),
+            ("/", ("GET",)),
+            ("/health", ("GET",)),
         ("/receitas", ("GET",)),
         ("/receitas/nova", ("GET", "POST")),
         ("/receitas/editar/<int:id>", ("GET", "POST")),

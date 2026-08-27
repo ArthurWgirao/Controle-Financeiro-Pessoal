@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from urllib.parse import urljoin, urlparse
 
 import click
-from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 load_dotenv(override=False)
@@ -74,6 +74,10 @@ def dashboard():
         erro=erro,
         formatar_moeda=formatar_moeda
     ), (400 if erro else 200)
+
+
+def healthcheck():
+    return jsonify(status="ok", service="controle-financeiro")
 
 
 # Receitas
@@ -562,6 +566,7 @@ def logout():
 
 
 def registrar_rotas(app):
+    app.add_url_rule("/health", view_func=healthcheck, methods=["GET"])
     app.add_url_rule("/cadastro", view_func=cadastro, methods=["GET", "POST"])
     app.add_url_rule("/login", view_func=login, methods=["GET", "POST"])
     app.add_url_rule("/logout", view_func=logout, methods=["POST"])
