@@ -13,34 +13,68 @@
 
 ## Visão geral
 
-O **Controle Financeiro Pessoal** centraliza as principais informações do orçamento em uma interface simples. Cada pessoa acessa apenas os dados de sua própria conta e pode acompanhar entradas, gastos, limites mensais e resultados por período para tomar decisões financeiras mais conscientes.
+O **Controle Financeiro Pessoal** centraliza as principais informações do orçamento em uma interface simples e acessível. Cada pessoa visualiza apenas os dados da própria conta e pode acompanhar entradas, gastos, metas mensais e resultados por período para tomar decisões financeiras mais conscientes.
+
+A página inicial funciona como um Dashboard financeiro completo, reunindo indicadores, filtros e visualizações gráficas em um único ambiente.
 
 ## Principais funcionalidades
 
 - cadastro, login e logout de usuários;
-- gerenciamento de receitas e despesas com categorias predefinidas;
-- dashboard com saldo e totais financeiros;
-- criação e acompanhamento de metas mensais por categoria;
-- relatórios por período e gráficos de evolução financeira;
-- isolamento dos dados de cada usuário;
-- validações no servidor e mensagens de erro compreensíveis.
+- gerenciamento completo de receitas e despesas;
+- categorias financeiras predefinidas e validadas;
+- Dashboard com filtro por mês e ano;
+- indicadores de receitas, despesas, saldo e movimentações;
+- evolução financeira dos últimos seis meses;
+- gráficos de receitas e despesas por categoria;
+- criação e acompanhamento de metas mensais;
+- comparação gráfica entre gastos e limites das metas;
+- análises financeiras por período;
+- isolamento integral dos dados de cada usuário;
+- validações no servidor e mensagens de erro compreensíveis;
+- interface responsiva e acessível para diferentes tamanhos de tela.
 
 ## Diferenciais técnicos
 
-- Application Factory e configuração por ambiente;
-- autenticação com Flask-Login e proteção CSRF com Flask-WTF;
+- Application Factory e configuração separada por ambiente;
+- autenticação com Flask-Login;
+- proteção CSRF com Flask-WTF;
 - autorização por usuário em consultas e operações financeiras;
-- persistência com SQLAlchemy e migrations Alembic/Flask-Migrate;
+- persistência com SQLAlchemy;
+- migrations versionadas com Alembic e Flask-Migrate;
 - PostgreSQL como banco principal, executado localmente com Docker Compose;
-- compatibilidade preservada com SQLite e histórico de migração reproduzível;
-- ferramenta dedicada para transferência validada de dados entre SQLite e PostgreSQL;
-- testes automatizados isolados, incluindo cenários com bancos temporários protegidos.
+- compatibilidade controlada com SQLite;
+- histórico de migração reproduzível entre SQLite e PostgreSQL;
+- ferramenta dedicada para transferência validada de dados;
+- cálculos financeiros com `Decimal`;
+- tratamento seguro de conflitos e rollback;
+- testes automatizados com bancos temporários isolados;
+- inicialização local automatizada no Windows.
+
+## Dashboard financeiro
+
+O Dashboard concentra as principais análises do sistema assim que o usuário acessa sua conta.
+
+Ele apresenta:
+
+- totais de receitas e despesas;
+- saldo do período;
+- quantidade de movimentações;
+- filtro por mês e ano;
+- evolução de receitas e despesas nos últimos seis meses;
+- distribuição de despesas por categoria;
+- distribuição de receitas por categoria;
+- acompanhamento das metas do mês atual;
+- estados vazios e links de ação quando ainda não existem dados.
+
+As visualizações são geradas com Chart.js e acompanhadas por tabelas e descrições textuais acessíveis.
 
 ## Arquitetura
 
-As rotas Flask coordenam módulos de autenticação, transações, metas, relatórios e validações. Modelos SQLAlchemy representam os dados financeiros, enquanto migrations versionadas mantêm a evolução do schema e templates Jinja compõem a interface web.
+As rotas Flask coordenam os módulos de autenticação, transações, metas, relatórios e validações. Os modelos SQLAlchemy representam os dados financeiros, enquanto migrations versionadas controlam a evolução do schema.
 
-O PostgreSQL é a persistência principal do ambiente local. A suíte de testes utiliza bancos isolados e mecanismos de proteção para não alterar dados persistentes durante as verificações.
+A lógica de análise permanece separada da interface: os módulos de domínio realizam consultas e cálculos, enquanto os templates Jinja apresentam os resultados e o Chart.js renderiza as visualizações gráficas.
+
+O PostgreSQL é a persistência principal do ambiente local. A suíte de testes utiliza bancos isolados e mecanismos de proteção para evitar alterações nos dados persistentes durante as verificações.
 
 ## Tecnologias
 
@@ -51,24 +85,38 @@ O PostgreSQL é a persistência principal do ambiente local. A suíte de testes 
 | Persistência | SQLAlchemy, Alembic e Flask-Migrate |
 | Bancos de dados | PostgreSQL e SQLite |
 | Interface | Jinja, HTML, CSS, JavaScript e Chart.js |
-| Ambiente local | Docker Compose |
+| Servidor local | Waitress |
+| Infraestrutura local | Docker Compose |
 | Qualidade | Pytest |
 
 O projeto também preserva uma interface legada de terminal, que utiliza Matplotlib para uma visualização local de despesas.
 
 ## Qualidade e segurança
 
-As senhas são armazenadas como hash, os formulários mutáveis recebem proteção CSRF e as consultas financeiras aplicam isolamento por usuário. Valores monetários são validados no servidor e tratados com `Decimal`, enquanto migrations e testes com bancos temporários ajudam a preservar a consistência entre SQLite e PostgreSQL e a impedir operações cruzadas entre contas.
+As senhas são armazenadas como hash, os formulários mutáveis recebem proteção CSRF e todas as consultas financeiras aplicam isolamento por usuário.
 
-## Execução local
+Valores monetários são validados no servidor e tratados com `Decimal`. As operações de persistência possuem rollback em caso de falha, enquanto migrations e testes com bancos temporários ajudam a preservar a consistência dos dados entre SQLite e PostgreSQL.
 
-As dependências estão declaradas nos arquivos de requirements, as configurações esperadas são exemplificadas em `.env.example` e o PostgreSQL local pode ser iniciado com o `compose.yaml`. As migrations preparam o schema; procedimentos operacionais específicos permanecem documentados em `docs/`.
+Na execução local, a aplicação e o PostgreSQL são vinculados exclusivamente ao endereço `127.0.0.1`, evitando exposição desnecessária para outros dispositivos da rede.
+
+## Execução local no Windows
+
+A aplicação pode ser utilizada como um programa local por meio de dois atalhos na Área de Trabalho:
+
+- **Controle Financeiro**, responsável por iniciar Docker, PostgreSQL e Waitress e abrir a aplicação no Microsoft Edge em modo aplicativo;
+- **Encerrar Controle Financeiro**, responsável por finalizar o servidor local e parar com segurança o PostgreSQL quando ele tiver sido iniciado pelo launcher.
+
+A inicialização não depende da ativação manual da `.venv`, e os dados permanecem armazenados no volume persistente do PostgreSQL após o encerramento.
+
+As instruções operacionais estão disponíveis em [Uso local no Windows](docs/uso-local-windows.md).
 
 ## Situação do projeto
 
-A versão local da aplicação está concluída, funcional e validada com PostgreSQL como banco principal. O SQLite permanece disponível como compatibilidade controlada e recurso de recuperação.
+A versão local da aplicação está concluída, funcional e validada com PostgreSQL como banco principal.
 
-O código está preparado para apresentação pública no GitHub. Um futuro deploy em nuvem e uma página demonstrativa no GitHub Pages fazem parte das próximas possibilidades de evolução.
+O sistema pode ser utilizado diariamente no Windows por meio dos atalhos locais, sem necessidade de executar manualmente os comandos de inicialização. O SQLite permanece disponível como compatibilidade controlada e recurso de recuperação.
+
+O código está preparado para apresentação pública no GitHub. Um futuro deploy em nuvem e uma página demonstrativa no GitHub Pages permanecem como possibilidades de evolução, sem impedir o uso completo da versão local.
 
 ## Autor
 
