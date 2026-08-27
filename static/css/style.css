@@ -639,10 +639,22 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     margin-top: 15px;
 }
 
+.cabecalho-dashboard { margin-bottom: 20px; }
+.cabecalho-dashboard h1 { margin-bottom: 8px; }
+.indicador-relatorio small { line-height: 1.4; }
+.grade-categorias { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.painel-categoria { min-width: 0; }
+.grafico-categoria { height: 320px; margin-bottom: 18px; }
+.grafico-metas { min-height: 360px; margin: 18px 0; }
+.nota-periodo-metas { padding: 12px; border-left: 5px solid #FACC15; background: white; }
+.link-gerenciar-metas { margin-top: 18px; }
+
 @media (max-width: 950px) {
     .relatorio-duas-colunas {
         grid-template-columns: 1fr;
     }
+
+    .grade-categorias { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 700px) {

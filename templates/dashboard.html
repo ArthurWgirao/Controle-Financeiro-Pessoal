@@ -1,47 +1,55 @@
 {% extends "base.html" %}
-
 {% block conteudo %}
-
-<h1>📊 Dashboard</h1>
-
-<div class="cards">
-
-    <div class="card">
-        <h2>💰 Saldo Atual</h2>
-        <p>R$ {{ "%.2f"|format(saldo) }}</p>
-    </div>
-
-
-    <div class="card">
-        <h2>📈 Receitas</h2>
-        <p>R$ {{ "%.2f"|format(receitas) }}</p>
-    </div>
-
-
-    <div class="card">
-        <h2>📉 Despesas</h2>
-        <p>R$ {{ "%.2f"|format(despesas) }}</p>
-    </div>
-
-</div>
-
-
-<!-- Espaço para futuras funcionalidades -->
-
-<section class="dashboard-extra">
-
-    <h2>Resumo financeiro</h2>
-
-    <p>
-        Acompanhe suas receitas, despesas e a evolução do seu saldo.
-    </p>
-
-    <!-- Futuramente:
-        - Últimas transações
-        - Gráficos com Chart.js
-        - Metas de gastos
-    -->
-
-</section>
-
+<header class="cabecalho-dashboard">
+    <h1><span aria-hidden="true">📊</span> Dashboard financeiro</h1>
+    {% if not erro %}<p>Período de referência: <strong>{{ relatorio["periodo"] }}</strong></p>{% endif %}
+</header>
+<form method="GET" action="{{ url_for('dashboard') }}" class="filtros-relatorio" aria-label="Filtrar período do Dashboard">
+    <div><label for="mes">Mês</label><select id="mes" name="mes" required aria-describedby="erro-periodo">
+        {% if erro and mes_selecionado not in ['1','2','3','4','5','6','7','8','9','10','11','12'] %}<option value="{{ mes_selecionado or '' }}" selected>{{ mes_selecionado or 'Selecione' }}</option>{% endif %}
+        {% for nome_mes in meses %}<option value="{{ loop.index }}" {% if mes_selecionado == loop.index|string %}selected{% endif %}>{{ nome_mes }}</option>{% endfor %}
+    </select></div>
+    <div><label for="ano">Ano</label><input id="ano" name="ano" type="number" min="1900" max="2100" value="{{ ano_selecionado or '' }}" required aria-describedby="erro-periodo"></div>
+    <button type="submit">Aplicar filtro</button>
+</form>
+{% if erro %}
+<p id="erro-periodo" class="mensagem-erro erro-relatorio" role="alert">{{ erro }}</p>
+{% else %}
+{% set resumo = relatorio["resumo"] %}
+<section aria-labelledby="titulo-indicadores"><h2 id="titulo-indicadores" class="sr-only">Indicadores financeiros</h2><div class="indicadores-relatorio">
+    <article class="indicador-relatorio receita"><span>Receitas</span><strong>R$ {{ formatar_moeda(resumo["receitas"]) }}</strong></article>
+    <article class="indicador-relatorio despesa"><span>Despesas</span><strong>R$ {{ formatar_moeda(resumo["despesas"]) }}</strong></article>
+    <article class="indicador-relatorio saldo {{ resumo['classe_saldo'] }}"><span>Saldo</span><strong>R$ {{ formatar_moeda(resumo["saldo"]) }}</strong></article>
+    <article class="indicador-relatorio quantidade"><span>Movimentações</span><strong>{{ resumo["quantidade_receitas"] + resumo["quantidade_despesas"] }}</strong><small>{{ resumo["quantidade_receitas"] }} receitas e {{ resumo["quantidade_despesas"] }} despesas</small></article>
+</div></section>
+{% if not relatorio["tem_movimentacoes"] %}<div class="estado-vazio estado-vazio-relatorio"><h2>Nenhuma movimentação no período</h2><p>Escolha outro período ou cadastre uma receita ou despesa.</p></div>{% endif %}
+<section class="secao-relatorio" aria-labelledby="titulo-evolucao"><h2 id="titulo-evolucao">Evolução financeira dos últimos seis meses</h2><div class="grafico-container grafico-evolucao">
+    <p id="descricao-grafico-evolucao" class="sr-only">Comparação mensal de receitas e despesas. As séries terminam no período selecionado.</p>
+    <canvas id="graficoEvolucao" role="img" aria-label="Evolução financeira dos últimos seis meses" aria-describedby="descricao-grafico-evolucao"></canvas>
+</div></section>
+<div class="grade-categorias">
+{% for tipo, titulo, itens, id_grafico in [('despesas', 'Despesas por categoria', relatorio['despesas_categorias'], 'graficoDespesasCategorias'), ('receitas', 'Receitas por categoria', relatorio['receitas_categorias'], 'graficoReceitasCategorias')] %}
+<section class="secao-relatorio painel-categoria" aria-labelledby="titulo-{{ tipo }}-categoria"><h2 id="titulo-{{ tipo }}-categoria">{{ titulo }}</h2>
+{% if itens %}<div class="grafico-container grafico-categoria"><p id="descricao-{{ id_grafico }}" class="sr-only">Distribuição de {{ tipo }} por categoria. Os mesmos dados estão na tabela.</p><canvas id="{{ id_grafico }}" role="img" aria-label="{{ titulo }}" aria-describedby="descricao-{{ id_grafico }}"></canvas></div>
+<div class="table-responsive" tabindex="0" role="region" aria-label="{{ titulo }}"><table class="tabela"><caption class="sr-only">{{ titulo }} no período selecionado</caption><thead><tr><th scope="col">Categoria</th><th scope="col">Total</th><th scope="col">Percentual</th><th scope="col">Lançamentos</th></tr></thead><tbody>{% for item in itens %}<tr><td>{{ item["categoria"] }}</td><td>R$ {{ formatar_moeda(item["total"]) }}</td><td>{{ "%.2f"|format(item["percentual"]) }}%</td><td>{{ item["quantidade"] }}</td></tr>{% endfor %}</tbody></table></div>
+{% else %}<p class="mensagem-sem-dados">Não há {{ tipo }} para analisar neste período.</p>{% endif %}</section>
+{% endfor %}</div>
+<section class="secao-relatorio secao-metas-dashboard" aria-labelledby="titulo-metas-dashboard"><h2 id="titulo-metas-dashboard">Metas de {{ periodo_metas }}</h2><p class="nota-periodo-metas">As metas sempre refletem o mês atual e não mudam com o filtro histórico acima.</p>
+{% if metas %}<div class="grafico-container grafico-metas"><p id="descricao-grafico-metas" class="sr-only">Comparação entre limite e gasto atual de cada meta. Os mesmos dados estão na tabela.</p><canvas id="graficoMetas" role="img" aria-label="Limites e gastos das metas do mês atual" aria-describedby="descricao-grafico-metas"></canvas></div>
+<div class="table-responsive" tabindex="0" role="region" aria-label="Acompanhamento textual das metas"><table class="tabela"><caption class="sr-only">Situação das metas do mês atual</caption><thead><tr><th scope="col">Categoria</th><th scope="col">Limite</th><th scope="col">Gasto</th><th scope="col">Restante</th><th scope="col">Percentual</th><th scope="col">Situação</th></tr></thead><tbody>{% for meta in metas %}<tr><td>{{ meta["categoria"] }}</td><td>R$ {{ formatar_moeda(meta["limite"]) }}</td><td>R$ {{ formatar_moeda(meta["gasto"]) }}</td><td>R$ {{ formatar_moeda(meta["restante"]) }}</td><td>{{ "%.2f"|format(meta["percentual"]) }}%</td><td>{{ meta["situacao"] }}</td></tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="estado-vazio"><h3>Nenhuma meta cadastrada</h3><p>Cadastre metas para acompanhar limites e gastos do mês atual.</p><a class="btn-adicionar" href="{{ url_for('nova_meta') }}">Cadastrar meta</a></div>{% endif %}<p class="link-gerenciar-metas"><a href="{{ url_for('metas') }}">Gerenciar metas</a></p></section>
+{% endif %}
 {% endblock %}
+{% block scripts %}{% if not erro %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script><script>
+(() => {
+const formatarReal = (valor) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
+const tooltipMonetario = { callbacks: { label: (contexto) => `${contexto.dataset.label || "Valor"}: ${formatarReal(contexto.raw)}` } };
+const evolucao = {{ relatorio["evolucao"] | tojson }}; const canvasEvolucao = document.getElementById("graficoEvolucao");
+if (canvasEvolucao) new Chart(canvasEvolucao, { type: "line", data: { labels: evolucao.rotulos, datasets: [{ label: "Receitas", data: evolucao.receitas, borderColor: "#15803D", backgroundColor: "#15803D", tension: .25 }, { label: "Despesas", data: evolucao.despesas, borderColor: "#B91C1C", backgroundColor: "#B91C1C", tension: .25 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: tooltipMonetario }, scales: { y: { ticks: { callback: formatarReal } } } } });
+const criarRosca = (id, dados, rotulo, cores) => { const canvas = document.getElementById(id); if (canvas) new Chart(canvas, { type: "doughnut", data: { labels: dados.rotulos, datasets: [{ label: rotulo, data: dados.valores, backgroundColor: cores, borderColor: "#fff", borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: tooltipMonetario } } }); };
+{% if relatorio["despesas_categorias"] %}criarRosca("graficoDespesasCategorias", {{ relatorio["grafico_despesas_categorias"] | tojson }}, "Despesas", ["#B91C1C", "#FACC15", "#111", "#F97316", "#7F1D1D"]);{% endif %}
+{% if relatorio["receitas_categorias"] %}criarRosca("graficoReceitasCategorias", {{ relatorio["grafico_receitas_categorias"] | tojson }}, "Receitas", ["#15803D", "#FACC15", "#111", "#4ADE80", "#166534"]);{% endif %}
+{% if metas %}const dadosMetas = {{ grafico_metas | tojson }}; const canvasMetas = document.getElementById("graficoMetas"); if (canvasMetas) new Chart(canvasMetas, { type: "bar", data: { labels: dadosMetas.rotulos, datasets: [{ label: "Limite", data: dadosMetas.limites, backgroundColor: "#FACC15" }, { label: "Gasto", data: dadosMetas.gastos, backgroundColor: "#111" }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { tooltip: tooltipMonetario }, scales: { x: { beginAtZero: true, ticks: { callback: formatarReal } } } } });{% endif %}
+})();
+</script>{% endif %}{% endblock %}

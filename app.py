@@ -36,7 +36,6 @@ from transacoes import (
     buscar_transacao_por_id_e_tipo,
     buscar_transacoes_por_tipo,
     cadastrar_transacao,
-    calcular_resumo,
     excluir_transacao
 )
 from validacoes import (
@@ -50,14 +49,31 @@ from migracao_dados import comando_transferencia
 @login_required
 def dashboard():
 
-    receitas, despesas, saldo = calcular_resumo(current_user.id)
+    mes_informado = request.args.get("mes")
+    ano_informado = request.args.get("ano")
+    mes, ano, erro = validar_periodo(mes_informado, ano_informado)
+    agora = datetime.now()
+    mes_metas = agora.strftime("%m/%Y")
+    periodo_metas = f"{MESES[agora.month - 1]} de {agora.year}"
+    relatorio = preparar_relatorio(mes, ano, current_user.id) if not erro else None
+    lista_metas = listar_metas_mensais(mes_metas, current_user.id)
 
     return render_template(
         "dashboard.html",
-        receitas=receitas,
-        despesas=despesas,
-        saldo=saldo
-    )
+        relatorio=relatorio,
+        metas=lista_metas,
+        grafico_metas={
+            "rotulos": [meta["categoria"] for meta in lista_metas],
+            "limites": [float(meta["limite"]) for meta in lista_metas],
+            "gastos": [float(meta["gasto"]) for meta in lista_metas]
+        },
+        periodo_metas=periodo_metas,
+        meses=MESES,
+        mes_selecionado=(mes_informado if erro else str(mes)),
+        ano_selecionado=(ano_informado if erro else str(ano)),
+        erro=erro,
+        formatar_moeda=formatar_moeda
+    ), (400 if erro else 200)
 
 
 # Receitas
@@ -485,37 +501,12 @@ def formatar_moeda(valor):
 
 @login_required
 def relatorios():
-
-    mes_informado = request.args.get("mes")
-    ano_informado = request.args.get("ano")
-
-    mes, ano, erro = validar_periodo(
-        mes_informado,
-        ano_informado
-    )
-
-    if erro:
-        return render_template(
-            "relatorios.html",
-            relatorio=None,
-            meses=MESES,
-            mes_selecionado=mes_informado,
-            ano_selecionado=ano_informado,
-            erro=erro,
-            formatar_moeda=formatar_moeda
-        ), 400
-
-    relatorio = preparar_relatorio(mes, ano, current_user.id)
-
-    return render_template(
-        "relatorios.html",
-        relatorio=relatorio,
-        meses=MESES,
-        mes_selecionado=str(mes),
-        ano_selecionado=str(ano),
-        erro=None,
-        formatar_moeda=formatar_moeda
-    )
+    parametros = {
+        nome: request.args[nome]
+        for nome in ("mes", "ano")
+        if nome in request.args
+    }
+    return redirect(url_for("dashboard", **parametros))
 
 
 def _destino_local(destino):

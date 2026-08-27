@@ -52,10 +52,6 @@
                 <a href="/metas" {% if request.endpoint in ['metas', 'nova_meta', 'editar_meta', 'excluir_meta'] %}aria-current="page"{% endif %}><span aria-hidden="true">🎯</span> Metas</a>
             </li>
 
-            <li>
-                <a href="/relatorios" {% if request.endpoint == 'relatorios' %}aria-current="page"{% endif %}><span aria-hidden="true">📈</span> Relatórios</a>
-            </li>
-
         </ul>
         </nav>
         <form method="POST" action="{{ url_for('logout') }}" class="form-logout">

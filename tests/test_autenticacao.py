@@ -92,8 +92,8 @@ def test_isolamento_completo_web(cliente, usuario, segundo_usuario, inserir_tran
     dashboard = cliente.get("/").get_data(as_text=True)
     receitas = cliente.get("/receitas").get_data(as_text=True)
     despesas = cliente.get("/despesas").get_data(as_text=True)
-    relatorio = cliente.get("/relatorios").get_data(as_text=True)
-    assert "900" not in dashboard and "400" not in dashboard
+    relatorio = cliente.get("/relatorios", follow_redirects=True).get_data(as_text=True)
+    assert "900,00" not in dashboard and "400,00" not in dashboard
     assert "Outro" not in receitas and "Privada" not in despesas
     assert "Privada" not in relatorio and "Outro" not in relatorio
     assert cliente.get(f"/receitas/editar/{receita_outro}").status_code == 404

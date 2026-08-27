@@ -69,7 +69,6 @@ def assert_labels_resolvidos(doc):
         ("/receitas", 'href="/receitas" aria-current="page"'),
         ("/despesas", 'href="/despesas" aria-current="page"'),
         ("/metas", 'href="/metas" aria-current="page"'),
-        ("/relatorios", 'href="/relatorios" aria-current="page"'),
     ]
 )
 def test_estrutura_base_skip_link_e_navegacao_ativa(
@@ -97,7 +96,6 @@ def test_estrutura_base_skip_link_e_navegacao_ativa(
         ("/receitas/nova", False),
         ("/despesas/nova", False),
         ("/metas/nova", False),
-        ("/relatorios", False),
     ]
 )
 def test_labels_ids_e_csrf_dos_formularios(
@@ -212,10 +210,11 @@ def test_relatorio_renderiza_tabela_e_graficos_acessiveis(
 ):
     inserir_receita(valor=200, data=data_atual)
     inserir_despesa(valor=50, data=data_atual)
-    resposta = cliente.get("/relatorios")
+    resposta = cliente.get("/")
     doc = documento(resposta)
     for canvas_id, descricao_id in (
-        ("graficoCategorias", "descricao-grafico-categorias"),
+        ("graficoDespesasCategorias", "descricao-graficoDespesasCategorias"),
+        ("graficoReceitasCategorias", "descricao-graficoReceitasCategorias"),
         ("graficoEvolucao", "descricao-grafico-evolucao"),
     ):
         canvas = doc.buscar("canvas", id=canvas_id, role="img")[0]
@@ -223,17 +222,18 @@ def test_relatorio_renderiza_tabela_e_graficos_acessiveis(
         assert canvas.get("aria-describedby") == descricao_id
         assert descricao_id in doc.ids
     html = resposta.get_data(as_text=True)
-    assert 'new Chart(document.getElementById("graficoCategorias")' in html
-    assert 'new Chart(document.getElementById("graficoEvolucao")' in html
+    assert 'graficoDespesasCategorias' in html
+    assert 'graficoReceitasCategorias' in html
+    assert 'canvasEvolucao' in html
     assert "{{" not in html and "{%" not in html
-    template = Path("templates/relatorios.html").read_text(encoding="utf-8")
+    template = Path("templates/dashboard.html").read_text(encoding="utf-8")
     assert "| tojson" in template
 
 
 def test_relatorio_sem_categorias_e_com_erro(cliente):
-    vazio = cliente.get("/relatorios")
+    vazio = cliente.get("/")
     assert "Não há despesas para analisar" in vazio.get_data(as_text=True)
-    erro = cliente.get("/relatorios?mes=13&ano=2025")
+    erro = cliente.get("/?mes=13&ano=2025")
     assert erro.status_code == 400
     assert documento(erro).buscar(role="alert")
 

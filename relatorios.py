@@ -174,13 +174,13 @@ def obter_resumo_periodo(movimentacoes, mes, ano):
     }
 
 
-def obter_despesas_por_categoria(movimentacoes, mes, ano):
+def obter_movimentacoes_por_categoria(movimentacoes, mes, ano, tipo):
 
     agrupamento = {}
 
     for movimentacao in movimentacoes:
         if (
-            movimentacao["tipo"] != "despesa"
+            movimentacao["tipo"] != tipo
             or movimentacao["data"].month != mes
             or movimentacao["data"].year != ano
         ):
@@ -198,7 +198,7 @@ def obter_despesas_por_categoria(movimentacoes, mes, ano):
         agrupamento[categoria]["total"] += movimentacao["valor"]
         agrupamento[categoria]["quantidade"] += 1
 
-    total_despesas = sum(
+    total_movimentacoes = sum(
         item["total"]
         for item in agrupamento.values()
     )
@@ -207,20 +207,32 @@ def obter_despesas_por_categoria(movimentacoes, mes, ano):
 
     for item in agrupamento.values():
         percentual = (
-            (item["total"] / total_despesas) * 100
-            if total_despesas > 0
+            (item["total"] / total_movimentacoes) * 100
+            if total_movimentacoes > 0
         else Decimal("0")
         )
 
         categorias.append({
             **item,
-            "percentual": float(percentual)
+            "percentual": percentual
         })
 
     return sorted(
         categorias,
         key=lambda item: item["total"],
         reverse=True
+    )
+
+
+def obter_despesas_por_categoria(movimentacoes, mes, ano):
+    return obter_movimentacoes_por_categoria(
+        movimentacoes, mes, ano, "despesa"
+    )
+
+
+def obter_receitas_por_categoria(movimentacoes, mes, ano):
+    return obter_movimentacoes_por_categoria(
+        movimentacoes, mes, ano, "receita"
     )
 
 
@@ -288,6 +300,11 @@ def preparar_relatorio(mes, ano, usuario_id):
         mes,
         ano
     )
+    receitas_categorias = obter_receitas_por_categoria(
+        movimentacoes,
+        mes,
+        ano
+    )
     evolucao = obter_evolucao_mensal(movimentacoes, mes, ano)
 
     return {
@@ -296,7 +313,8 @@ def preparar_relatorio(mes, ano, usuario_id):
         "periodo": f"{MESES[mes - 1]} de {ano}",
         "resumo": resumo,
         "despesas_categorias": despesas_categorias,
-        "grafico_categorias": {
+        "receitas_categorias": receitas_categorias,
+        "grafico_despesas_categorias": {
             "rotulos": [
                 item["categoria"]
                 for item in despesas_categorias
@@ -305,6 +323,10 @@ def preparar_relatorio(mes, ano, usuario_id):
                 float(item["total"])
                 for item in despesas_categorias
             ]
+        },
+        "grafico_receitas_categorias": {
+            "rotulos": [item["categoria"] for item in receitas_categorias],
+            "valores": [float(item["total"]) for item in receitas_categorias]
         },
         "evolucao": {
             "rotulos": evolucao["rotulos"],

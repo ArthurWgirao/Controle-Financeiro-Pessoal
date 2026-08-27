@@ -33,7 +33,7 @@ def test_validacao_do_periodo(mes, ano, tem_erro):
 
 
 def test_rota_preserva_filtros_invalidos(cliente):
-    resposta = cliente.get("/relatorios?mes=abc&ano=xyz")
+    resposta = cliente.get("/relatorios?mes=abc&ano=xyz", follow_redirects=True)
     html = resposta.get_data(as_text=True)
     assert resposta.status_code == 400
     assert 'value="abc"' in html
@@ -41,7 +41,7 @@ def test_rota_preserva_filtros_invalidos(cliente):
 
 
 def test_rota_sem_parametros_usa_periodo_atual(cliente):
-    html = cliente.get("/relatorios").get_data(as_text=True)
+    html = cliente.get("/").get_data(as_text=True)
     assert relatorios.MESES[datetime.now().month - 1] in html
     assert str(datetime.now().year) in html
 
@@ -127,10 +127,20 @@ def test_categorias_agrupadas_ordenadas_e_com_percentual(
         "Comida", "Educação"
     ]
     assert categorias[0]["quantidade"] == 2
-    assert categorias[0]["percentual"] == pytest.approx(66.666, rel=0.01)
-    assert sum(item["percentual"] for item in categorias) == pytest.approx(
-        100
-    )
+    assert float(categorias[0]["percentual"]) == pytest.approx(66.666, rel=0.01)
+    assert float(sum(item["percentual"] for item in categorias)) == pytest.approx(100)
+
+
+def test_receitas_agrupadas_ordenadas_e_isoladas(
+    inserir_transacao, usuario, segundo_usuario
+):
+    inserir_transacao(tipo="receita", valor=200, categoria="Salário", data="01/07/2026")
+    inserir_transacao(tipo="receita", valor=50, categoria="Freelance", data="02/07/2026")
+    inserir_transacao(tipo="receita", valor=999, categoria="Outro", data="03/07/2026", usuario_id=segundo_usuario.id)
+    itens = relatorios.preparar_relatorio(7, 2026, usuario.id)["receitas_categorias"]
+    assert [item["categoria"] for item in itens] == ["Salário", "Freelance"]
+    assert itens[0]["quantidade"] == 1
+    assert float(itens[0]["percentual"]) == pytest.approx(80)
 
 
 def test_periodo_sem_despesa_nao_divide_por_zero(inserir_receita, usuario):
@@ -189,24 +199,26 @@ def test_evolucao_ignora_movimentacao_fora_da_janela():
 
 def test_estado_vazio_mantem_apenas_grafico_de_evolucao(cliente):
     html = cliente.get(
-        "/relatorios?mes=12&ano=2099"
+        "/?mes=12&ano=2099"
     ).get_data(as_text=True)
     assert "Nenhuma movimentação" in html
-    assert 'id="graficoCategorias"' not in html
+    assert 'id="graficoDespesasCategorias"' not in html
+    assert 'id="graficoReceitasCategorias"' not in html
     assert 'id="graficoEvolucao"' in html
     assert "[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]" in html
 
 
-def test_template_usa_tojson_e_chart_apenas_em_relatorios():
+def test_template_usa_tojson_e_chart_apenas_no_dashboard():
     raiz = Path(__file__).resolve().parents[1]
-    relatorio = (
-        raiz / "templates" / "relatorios.html"
+    dashboard = (
+        raiz / "templates" / "dashboard.html"
     ).read_text(encoding="utf-8")
     outros = [
         caminho.read_text(encoding="utf-8")
         for caminho in (raiz / "templates").glob("*.html")
-        if caminho.name != "relatorios.html"
+        if caminho.name != "dashboard.html"
     ]
-    assert relatorio.count("| tojson") >= 2
-    assert "chart.js@4.4.9" in relatorio
+    assert dashboard.count("| tojson") >= 4
+    assert "chart.js@4.4.9" in dashboard
+    assert not (raiz / "templates" / "relatorios.html").exists()
     assert all("chart.js@" not in conteudo for conteudo in outros)
