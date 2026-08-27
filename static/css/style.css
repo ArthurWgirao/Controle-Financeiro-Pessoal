@@ -649,6 +649,25 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .nota-periodo-metas { padding: 12px; border-left: 5px solid #FACC15; background: white; }
 .link-gerenciar-metas { margin-top: 18px; }
 
+.estado-vazio-metas-dashboard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    height: auto;
+}
+
+.estado-vazio-metas-dashboard .btn-adicionar {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    max-width: 100%;
+    text-align: center;
+    white-space: normal;
+}
+
 @media (max-width: 950px) {
     .relatorio-duas-colunas {
         grid-template-columns: 1fr;

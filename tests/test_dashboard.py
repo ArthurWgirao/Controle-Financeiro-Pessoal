@@ -79,6 +79,11 @@ def test_dashboard_vazio_nao_inicializa_graficos_de_categoria_ou_meta(cliente):
     assert 'id="graficoReceitasCategorias"' not in html
     assert 'id="graficoMetas"' not in html
     assert "Gerenciar metas" in html
+    bloco = html.index('class="estado-vazio estado-vazio-metas-dashboard"')
+    titulo = html.index("Nenhuma meta cadastrada", bloco)
+    descricao = html.index("Cadastre metas para acompanhar", titulo)
+    botao = html.index('href="/metas/nova"', descricao)
+    assert bloco < titulo < descricao < botao
 
 
 def test_main_importavel_sem_iniciar_menu(monkeypatch):
