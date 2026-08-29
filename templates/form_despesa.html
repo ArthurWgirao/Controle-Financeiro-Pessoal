@@ -19,18 +19,9 @@ name="descricao"
 value="{{ despesa['descricao'] if despesa else '' }}"
 required>
 
-<label for="categoria">Categoria</label>
-<select id="categoria" name="categoria" required>
-    <option value="">Selecione uma categoria</option>
-
-    {% for categoria in categorias %}
-    <option
-    value="{{ categoria }}"
-    {% if despesa and despesa['categoria'] == categoria %}selected{% endif %}>
-        {{ categoria }}
-    </option>
-    {% endfor %}
-</select>
+{% with dados=despesa %}
+{% include "_campo_categoria.html" %}
+{% endwith %}
 
 <label for="valor">Valor</label>
 <input

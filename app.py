@@ -39,6 +39,7 @@ from transacoes import (
     excluir_transacao
 )
 from validacoes import (
+    validar_categoria,
     validar_limite_meta,
     validar_meta,
     validar_transacao
@@ -100,21 +101,31 @@ def nova_receita():
 
         descricao = request.form.get("descricao", "").strip()
         categoria = request.form.get("categoria", "").strip()
+        categoria_personalizada = request.form.get(
+            "categoria_personalizada", ""
+        )
         valor_informado = request.form.get("valor", "").strip()
 
         dados_formulario = {
             "descricao": descricao,
             "categoria": categoria,
+            "categoria_personalizada": categoria_personalizada,
             "valor": valor_informado
         }
+
+        categoria_resolvida, erro_categoria = validar_categoria(
+            categoria, categoria_personalizada, categorias
+        )
 
         valor, erro = validar_transacao(
             descricao,
             categoria,
             valor_informado,
             categorias,
-            "receita"
+            "receita",
+            categoria_personalizada
         )
+        erro = erro_categoria or erro
 
         if erro:
             return render_template(
@@ -128,7 +139,7 @@ def nova_receita():
         cadastrar_transacao(
             "receita",
             valor,
-            categoria,
+            categoria_resolvida,
             descricao,
             current_user.id
         )
@@ -156,6 +167,9 @@ def editar_receita(id):
 
         descricao_informada = request.form.get("descricao")
         categoria_informada = request.form.get("categoria")
+        categoria_personalizada = request.form.get(
+            "categoria_personalizada", ""
+        )
         valor_informado = request.form.get("valor", "").strip()
 
         descricao = (
@@ -163,28 +177,37 @@ def editar_receita(id):
             if descricao_informada and descricao_informada.strip()
             else receita["descricao"]
         )
-        categoria = (
-            categoria_informada.strip()
-            if categoria_informada and categoria_informada.strip()
-            else receita["categoria"]
-        )
+        categoria = receita["categoria"]
+        erro_categoria = None
+        if categoria_informada and categoria_informada.strip():
+            categoria = categoria_informada.strip()
+            categoria, erro_categoria = validar_categoria(
+                categoria, categoria_personalizada, categorias
+            )
 
         dados_formulario = {
             "id": receita["id"],
             "tipo": receita["tipo"],
             "descricao": descricao,
             "categoria": categoria,
+            "categoria_personalizada": categoria_personalizada,
             "valor": valor_informado,
             "data": receita["data"]
         }
 
         valor, erro = validar_transacao(
             descricao,
-            categoria,
+            (
+                categoria_informada.strip()
+                if categoria_informada
+                else categorias[0]
+            ),
             valor_informado,
             categorias,
-            "receita"
+            "receita",
+            categoria_personalizada
         )
+        erro = erro_categoria or erro
 
         if erro:
             return render_template(
@@ -245,21 +268,31 @@ def nova_despesa():
 
         descricao = request.form.get("descricao", "").strip()
         categoria = request.form.get("categoria", "").strip()
+        categoria_personalizada = request.form.get(
+            "categoria_personalizada", ""
+        )
         valor_informado = request.form.get("valor", "").strip()
 
         dados_formulario = {
             "descricao": descricao,
             "categoria": categoria,
+            "categoria_personalizada": categoria_personalizada,
             "valor": valor_informado
         }
+
+        categoria_resolvida, erro_categoria = validar_categoria(
+            categoria, categoria_personalizada, categorias
+        )
 
         valor, erro = validar_transacao(
             descricao,
             categoria,
             valor_informado,
             categorias,
-            "despesa"
+            "despesa",
+            categoria_personalizada
         )
+        erro = erro_categoria or erro
 
         if erro:
             return render_template(
@@ -273,7 +306,7 @@ def nova_despesa():
         cadastrar_transacao(
             "despesa",
             valor,
-            categoria,
+            categoria_resolvida,
             descricao,
             current_user.id
         )
@@ -301,6 +334,9 @@ def editar_despesa(id):
 
         descricao_informada = request.form.get("descricao")
         categoria_informada = request.form.get("categoria")
+        categoria_personalizada = request.form.get(
+            "categoria_personalizada", ""
+        )
         valor_informado = request.form.get("valor", "").strip()
 
         descricao = (
@@ -308,28 +344,37 @@ def editar_despesa(id):
             if descricao_informada and descricao_informada.strip()
             else despesa["descricao"]
         )
-        categoria = (
-            categoria_informada.strip()
-            if categoria_informada and categoria_informada.strip()
-            else despesa["categoria"]
-        )
+        categoria = despesa["categoria"]
+        erro_categoria = None
+        if categoria_informada and categoria_informada.strip():
+            categoria = categoria_informada.strip()
+            categoria, erro_categoria = validar_categoria(
+                categoria, categoria_personalizada, categorias
+            )
 
         dados_formulario = {
             "id": despesa["id"],
             "tipo": despesa["tipo"],
             "descricao": descricao,
             "categoria": categoria,
+            "categoria_personalizada": categoria_personalizada,
             "valor": valor_informado,
             "data": despesa["data"]
         }
 
         valor, erro = validar_transacao(
             descricao,
-            categoria,
+            (
+                categoria_informada.strip()
+                if categoria_informada
+                else categorias[0]
+            ),
             valor_informado,
             categorias,
-            "despesa"
+            "despesa",
+            categoria_personalizada
         )
+        erro = erro_categoria or erro
 
         if erro:
             return render_template(
@@ -392,25 +437,35 @@ def nova_meta():
     if request.method == "POST":
 
         categoria = request.form.get("categoria", "").strip()
+        categoria_personalizada = request.form.get(
+            "categoria_personalizada", ""
+        )
         limite_informado = request.form.get("limite", "").strip()
 
         dados_formulario = {
             "categoria": categoria,
+            "categoria_personalizada": categoria_personalizada,
             "limite": limite_informado
         }
 
         limite, erro = validar_meta(
             categoria,
             limite_informado,
-            categorias
+            categorias,
+            categoria_personalizada
         )
 
-        if not erro and categoria_possui_meta(categoria, current_user.id):
+        categoria_resolvida, erro_categoria = validar_categoria(
+            categoria, categoria_personalizada, categorias
+        )
+        erro = erro_categoria or erro
+
+        if not erro and categoria_possui_meta(categoria_resolvida, current_user.id):
             erro = "Já existe uma meta para esta categoria."
 
         if not erro:
             try:
-                cadastrar_meta(categoria, limite, current_user.id)
+                cadastrar_meta(categoria_resolvida, limite, current_user.id)
             except MetaDuplicadaError:
                 erro = "Já existe uma meta para esta categoria."
 

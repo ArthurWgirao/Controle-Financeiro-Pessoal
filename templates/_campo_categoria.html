@@ -1,0 +1,36 @@
+{% set categoria_atual = dados['categoria'] if dados else '' %}
+{% set categoria_personalizada_atual = dados.categoria_personalizada|default('') if dados else '' %}
+{% set categoria_e_personalizada = categoria_atual and categoria_atual not in categorias %}
+
+<label for="categoria">Categoria</label>
+<select id="categoria" name="categoria" required data-categoria-outro="Outro">
+    <option value="">Selecione uma categoria</option>
+    {% for categoria in categorias %}
+    <option value="{{ categoria }}"
+        {% if (categoria == 'Outro' and categoria_e_personalizada) or (categoria_atual == categoria) %}selected{% endif %}>
+        {{ categoria }}
+    </option>
+    {% endfor %}
+</select>
+
+<div id="campo-categoria-personalizada" {% if categoria_atual != 'Outro' and not categoria_e_personalizada %}hidden{% endif %}>
+    <label for="categoria_personalizada">Nome da categoria</label>
+    <input id="categoria_personalizada" type="text" name="categoria_personalizada"
+        value="{{ categoria_personalizada_atual or (categoria_atual if categoria_e_personalizada else '') }}"
+        maxlength="100">
+</div>
+
+<script>
+(() => {
+    const categoria = document.getElementById('categoria');
+    const campo = document.getElementById('campo-categoria-personalizada');
+    const personalizada = document.getElementById('categoria_personalizada');
+    const atualizar = () => {
+        const exibir = categoria.value === categoria.dataset.categoriaOutro;
+        campo.hidden = !exibir;
+        personalizada.required = exibir;
+    };
+    categoria.addEventListener('change', atualizar);
+    atualizar();
+})();
+</script>

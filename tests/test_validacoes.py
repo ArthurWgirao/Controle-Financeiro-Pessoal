@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 
 from validacoes import (
+    validar_categoria,
     validar_limite_meta,
     validar_meta,
     validar_numero_positivo,
@@ -99,6 +100,12 @@ def test_meta_rejeita_categoria_invalida():
     valor, erro = validar_meta("Outra", "100", ["Comida"])
     assert valor is None
     assert "categoria" in erro
+
+
+def test_categoria_personalizada_e_normalizada():
+    categoria, erro = validar_categoria("Outro", "  Viagens  ", ["Outro"])
+    assert erro is None
+    assert categoria == "Viagens"
 
 
 @pytest.mark.parametrize("entrada", ["", "0", "-2", "abc", "inf", "-inf", "NaN"])

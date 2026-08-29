@@ -2,6 +2,27 @@ from decimal import Decimal, InvalidOperation
 
 
 VALOR_MAXIMO = Decimal("9999999999.99")
+CATEGORIA_OUTRO = "Outro"
+TAMANHO_MAXIMO_CATEGORIA = 100
+
+
+def validar_categoria(categoria, categoria_personalizada, categorias_permitidas):
+    """Retorna a categoria que deve ser persistida ou uma mensagem de erro."""
+    if categoria == CATEGORIA_OUTRO:
+        categoria_personalizada = categoria_personalizada.strip()
+        if not categoria_personalizada:
+            return None, "Informe o nome da categoria personalizada."
+        if len(categoria_personalizada) > TAMANHO_MAXIMO_CATEGORIA:
+            return None, (
+                "A categoria personalizada deve ter no máximo "
+                f"{TAMANHO_MAXIMO_CATEGORIA} caracteres."
+            )
+        return categoria_personalizada, None
+
+    if categoria not in categorias_permitidas:
+        return None, "Selecione uma categoria válida."
+
+    return categoria, None
 
 
 def validar_numero_positivo(
@@ -38,13 +59,17 @@ def validar_transacao(
     categoria,
     valor_informado,
     categorias_permitidas,
-    tipo
+    tipo,
+    categoria_personalizada=""
 ):
     if not descricao:
         return None, f"Informe uma descrição para a {tipo}."
 
-    if categoria not in categorias_permitidas:
-        return None, "Selecione uma categoria válida."
+    _, erro_categoria = validar_categoria(
+        categoria, categoria_personalizada, categorias_permitidas
+    )
+    if erro_categoria:
+        return None, erro_categoria
 
     return validar_numero_positivo(
         valor_informado,
@@ -54,9 +79,17 @@ def validar_transacao(
     )
 
 
-def validar_meta(categoria, limite_informado, categorias_permitidas):
-    if categoria not in categorias_permitidas:
-        return None, "Selecione uma categoria válida."
+def validar_meta(
+    categoria,
+    limite_informado,
+    categorias_permitidas,
+    categoria_personalizada=""
+):
+    _, erro_categoria = validar_categoria(
+        categoria, categoria_personalizada, categorias_permitidas
+    )
+    if erro_categoria:
+        return None, erro_categoria
 
     return validar_limite_meta(limite_informado)
 

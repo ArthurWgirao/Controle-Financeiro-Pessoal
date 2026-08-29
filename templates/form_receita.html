@@ -23,18 +23,9 @@ value="{{ receita['descricao'] if receita else '' }}"
 required>
 
 
-<label for="categoria">Categoria</label>
-<select id="categoria" name="categoria" required>
-    <option value="">Selecione uma categoria</option>
-
-    {% for categoria in categorias %}
-    <option
-    value="{{ categoria }}"
-    {% if receita and receita['categoria'] == categoria %}selected{% endif %}>
-        {{ categoria }}
-    </option>
-    {% endfor %}
-</select>
+{% with dados=receita %}
+{% include "_campo_categoria.html" %}
+{% endwith %}
 
 
 <label for="valor">Valor</label>
