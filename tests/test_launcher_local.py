@@ -98,12 +98,66 @@ def test_healthcheck_aprovado_e_invalido(monkeypatch):
 
 
 def test_porta_ocupada_por_terceiro_interrompe(monkeypatch, tmp_path):
+    (tmp_path / ".venv/Scripts").mkdir(parents=True)
+    (tmp_path / ".venv/Scripts/waitress-serve.exe").touch()
+    monkeypatch.setattr(launcher, "port_owner_pid", lambda: 123)
+    monkeypatch.setattr(launcher, "is_project_waitress_process", lambda *args: False)
+    with pytest.raises(launcher.LauncherError):
+        launcher.liberar_porta_da_aplicacao(
+            tmp_path, launcher.logging.getLogger("teste")
+        )
+
+
+def test_port_owner_pid_obtem_pid_do_netstat(monkeypatch):
+    saida = "  TCP    127.0.0.1:5000   0.0.0.0:0   LISTENING   4321\n"
+    resultado = subprocess.CompletedProcess([], 0, stdout=saida)
+    monkeypatch.setattr(launcher.subprocess, "run", lambda *args, **kwargs: resultado)
+    assert launcher.port_owner_pid() == 4321
+
+
+def test_liberar_porta_encerra_apenas_waitress_confirmado(monkeypatch, tmp_path):
+    pids = iter([4321, None])
+    encerrados = []
+    monkeypatch.setattr(launcher, "port_owner_pid", lambda: next(pids))
+    monkeypatch.setattr(launcher, "is_project_waitress_process", lambda *args: True)
+    monkeypatch.setattr(
+        launcher, "terminate_project_process",
+        lambda pid, root: encerrados.append((pid, root)) or True
+    )
+    launcher.liberar_porta_da_aplicacao(
+        tmp_path, launcher.logging.getLogger("teste")
+    )
+    assert encerrados == [(4321, tmp_path)]
+
+
+def test_localiza_wrapper_waitress_acima_do_processo_da_porta(
+    monkeypatch, tmp_path
+):
+    executavel = tmp_path / ".venv/Scripts/waitress-serve.exe"
+    executavel.parent.mkdir(parents=True)
+    executavel.touch()
+    detalhes = {
+        30: {"ExecutablePath": "python.exe", "ParentProcessId": 20},
+        20: {"ExecutablePath": str(executavel), "ParentProcessId": 10},
+        10: {"ExecutablePath": "cmd.exe", "ParentProcessId": 0}
+    }
+    monkeypatch.setattr(launcher, "is_project_waitress_process", lambda *args: True)
+    monkeypatch.setattr(launcher, "process_details", lambda pid: detalhes.get(pid))
+    assert launcher.project_waitress_root_pid(30, tmp_path) == 20
+
+
+def test_stop_encontra_waitress_orfao_pela_porta(monkeypatch, tmp_path):
     monkeypatch.setattr(launcher, "project_root", lambda: tmp_path)
     monkeypatch.setattr(launcher, "local_data_dir", lambda: tmp_path / "estado")
-    monkeypatch.setattr(launcher, "healthcheck", lambda: False)
-    monkeypatch.setattr(launcher, "port_in_use", lambda: True)
-    with pytest.raises(launcher.LauncherError):
-        launcher.start()
+    monkeypatch.setattr(launcher, "port_owner_pid", lambda: 4321)
+    monkeypatch.setattr(launcher, "is_project_waitress_process", lambda *args: True)
+    encerrados = []
+    monkeypatch.setattr(
+        launcher, "terminate_project_process",
+        lambda pid, root: encerrados.append((pid, root)) or True
+    )
+    assert launcher.stop(False) == 0
+    assert encerrados == [(4321, tmp_path)]
 
 
 def test_edge_e_fallback(monkeypatch, tmp_path):
@@ -135,15 +189,31 @@ def test_process_details_rejeita_pid_invalido():
     assert launcher.process_details(-1) is None
 
 
-def test_aplicacao_ja_ativa_nao_inicia_segunda_instancia(monkeypatch, tmp_path):
+def test_inicio_sempre_verifica_porta_antes_de_criar_waitress(monkeypatch, tmp_path):
     monkeypatch.setattr(launcher, "project_root", lambda: tmp_path)
     monkeypatch.setattr(launcher, "local_data_dir", lambda: tmp_path / "estado")
+    (tmp_path / ".venv/Scripts").mkdir(parents=True)
+    (tmp_path / ".venv/Scripts/waitress-serve.exe").touch()
+    verificacoes = []
+    monkeypatch.setattr(
+        launcher, "liberar_porta_da_aplicacao",
+        lambda root, logger: verificacoes.append(root)
+    )
     monkeypatch.setattr(launcher, "healthcheck", lambda: True)
-    abertas = []
-    monkeypatch.setattr(launcher, "open_application", lambda: abertas.append(True))
-    monkeypatch.setattr(launcher, "ensure_docker", lambda *args: pytest.fail("Docker não deveria ser chamado"))
+    monkeypatch.setattr(launcher, "ensure_docker", lambda *args: None)
+    monkeypatch.setattr(launcher, "ensure_postgres", lambda *args: False)
+    monkeypatch.setattr(launcher, "wait_until", lambda *args: True)
+    monkeypatch.setattr(launcher, "open_application", lambda: None)
+
+    class Processo:
+        pid = 1
+        def poll(self): return None
+
+    monkeypatch.setattr(
+        launcher.subprocess, "Popen", lambda *args, **kwargs: Processo()
+    )
     assert launcher.start() == 0
-    assert abertas == [True]
+    assert verificacoes == [tmp_path]
 
 
 def test_encerramento_idempotente(monkeypatch, tmp_path):

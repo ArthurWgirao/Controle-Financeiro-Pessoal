@@ -169,6 +169,31 @@ def port_in_use() -> bool:
         return probe.connect_ex((HOST, PORT)) == 0
 
 
+def port_owner_pid() -> int | None:
+    """Retorna o PID que escuta a porta local da aplicação no Windows."""
+    result = subprocess.run(
+        ["netstat.exe", "-ano", "-p", "tcp"],
+        capture_output=True, text=True, shell=False, check=False
+    )
+    if result.returncode:
+        return None
+
+    endereco = f"{HOST}:{PORT}"
+    for linha in result.stdout.splitlines():
+        partes = linha.split()
+        if (
+            len(partes) >= 5
+            and partes[0].upper() == "TCP"
+            and partes[1] == endereco
+            and partes[3].upper() == "LISTENING"
+        ):
+            try:
+                return int(partes[4])
+            except ValueError:
+                return None
+    return None
+
+
 def waitress_executable(root: Path) -> Path:
     executable = root / ".venv" / "Scripts" / "waitress-serve.exe"
     if not executable.is_file():
@@ -218,7 +243,7 @@ def process_details(pid: int) -> dict | None:
     command = [
         "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
         f'$p=Get-CimInstance Win32_Process -Filter "ProcessId={pid}";'
-        "if($p){$p|Select-Object ProcessId,ExecutablePath,CommandLine|ConvertTo-Json -Compress}"
+        "if($p){$p|Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine|ConvertTo-Json -Compress}"
     ]
     result = subprocess.run(command, capture_output=True, text=True, shell=False, check=False)
     if result.returncode or not result.stdout.strip():
@@ -228,6 +253,76 @@ def process_details(pid: int) -> dict | None:
         return details if isinstance(details, dict) else None
     except json.JSONDecodeError:
         return None
+
+
+def is_project_waitress_process(pid: int, root: Path) -> bool:
+    """Confirma pelo comando se o PID é o Waitress deste checkout."""
+    details = process_details(pid)
+    if not details:
+        return False
+    try:
+        executable = str(waitress_executable(root).resolve()).casefold()
+    except LauncherError:
+        return False
+    command_line = str(details.get("CommandLine") or "").casefold()
+    return (
+        executable in command_line
+        and "app:create_app" in command_line
+        and f"--port={PORT}" in command_line
+    )
+
+
+def project_waitress_root_pid(pid: int, root: Path) -> int | None:
+    """Localiza o wrapper waitress-serve acima do processo que escuta a porta."""
+    if not is_project_waitress_process(pid, root):
+        return None
+    expected_executable = str(waitress_executable(root).resolve()).casefold()
+    candidato = pid
+    atual = pid
+    while atual:
+        details = process_details(atual)
+        if not details:
+            break
+        executable = str(details.get("ExecutablePath") or "").casefold()
+        if executable == expected_executable:
+            candidato = atual
+        try:
+            atual = int(details.get("ParentProcessId") or 0)
+        except (TypeError, ValueError):
+            break
+    return candidato
+
+
+def terminate_project_process(pid: int, root: Path) -> bool:
+    """Encerra apenas a árvore de um Waitress já confirmado do projeto."""
+    root_pid = project_waitress_root_pid(pid, root)
+    if root_pid is None:
+        return False
+    result = subprocess.run(
+        ["taskkill.exe", "/PID", str(root_pid), "/T", "/F"],
+        capture_output=True, text=True, shell=False, check=False
+    )
+    return result.returncode == 0
+
+
+def liberar_porta_da_aplicacao(root: Path, logger: logging.Logger) -> None:
+    pid = port_owner_pid()
+    if pid is None:
+        return
+    if not is_project_waitress_process(pid, root):
+        raise LauncherError(
+            f"A porta {PORT} está ocupada pelo PID {pid}, que não foi "
+            "identificado como o Waitress deste projeto."
+        )
+    if not terminate_project_process(pid, root):
+        raise LauncherError(
+            f"Não foi possível encerrar o Waitress deste projeto (PID {pid})."
+        )
+    if port_owner_pid() is not None:
+        raise LauncherError(
+            f"A porta {PORT} continuou ocupada após encerrar o PID {pid}."
+        )
+    logger.info("Waitress anterior do projeto (PID %s) encerrado.", pid)
 
 
 def state_matches_process(state: dict, root: Path) -> bool:
@@ -273,12 +368,7 @@ def start() -> int:
     root = project_root()
     state_dir = local_data_dir()
     logger = configure_logging(state_dir)
-    if healthcheck():
-        logger.info("Aplicação já estava ativa.")
-        open_application()
-        return 0
-    if port_in_use():
-        raise LauncherError("A porta local 5000 está ocupada por outro serviço.")
+    liberar_porta_da_aplicacao(root, logger)
     ensure_docker(root, logger)
     stop_postgres = ensure_postgres(root, logger)
     executable = waitress_executable(root)
@@ -308,15 +398,17 @@ def stop(stop_postgres: bool | None = None) -> int:
     state_dir = local_data_dir()
     logger = configure_logging(state_dir)
     state = load_state(state_dir)
-    if state and state_matches_process(state, root) and healthcheck():
-        result = subprocess.run(
-            ["taskkill.exe", "/PID", str(state["pid"]), "/T", "/F"],
-            capture_output=True, text=True, shell=False, check=False
-        )
-        if result.returncode:
+    pid_porta = port_owner_pid()
+    if pid_porta is not None and is_project_waitress_process(pid_porta, root):
+        if not terminate_project_process(pid_porta, root):
             raise LauncherError("Não foi possível encerrar o servidor local com segurança.")
         logger.info("Aplicação encerrada.")
         state_file(state_dir).unlink(missing_ok=True)
+    elif state and state_matches_process(state, root) and healthcheck():
+        raise LauncherError(
+            "O processo salvo não está atendendo a porta local esperada; "
+            "nenhum processo foi encerrado."
+        )
     elif state and not process_details(int(state.get("pid", 0))):
         state_file(state_dir).unlink(missing_ok=True)
         logger.info("Estado antigo do launcher removido.")
