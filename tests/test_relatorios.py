@@ -168,7 +168,7 @@ def test_evolucao_de_seis_meses_com_zeros(inserir_transacao, usuario):
     ]
     assert evolucao["receitas"] == [100, 0, 0, 0, 0, 50]
     assert evolucao["despesas"] == [0, 20, 0, 0, 0, 0]
-    assert evolucao["saldos"] == [100, -20, 0, 0, 0, 50]
+    assert evolucao["saldos"] == [100, 80, 80, 80, 80, 130]
 
 
 def test_janela_de_seis_meses_trata_virada_de_ano():
@@ -184,7 +184,7 @@ def test_conversao_ignora_datas_invalidas(data):
     assert relatorios.converter_data(data) is None
 
 
-def test_evolucao_ignora_movimentacao_fora_da_janela():
+def test_evolucao_carrega_saldo_anterior_a_janela():
     movimentacoes = [{
         "tipo": "receita",
         "valor": 999,
@@ -195,6 +195,7 @@ def test_evolucao_ignora_movimentacao_fora_da_janela():
         movimentacoes, 7, 2026
     )
     assert evolucao["receitas"] == [0, 0, 0, 0, 0, 0]
+    assert evolucao["saldos"] == [999, 999, 999, 999, 999, 999]
 
 
 def test_estado_vazio_mantem_apenas_grafico_de_evolucao(cliente):

@@ -138,10 +138,24 @@ def obter_resumo_periodo(movimentacoes, mes, ano):
 
     receitas = Decimal("0.00")
     despesas = Decimal("0.00")
+    saldo_anterior = Decimal("0.00")
     quantidade_receitas = 0
     quantidade_despesas = 0
 
     for movimentacao in movimentacoes:
+        if (
+            movimentacao["data"].year < ano
+            or (
+                movimentacao["data"].year == ano
+                and movimentacao["data"].month < mes
+            )
+        ):
+            if movimentacao["tipo"] == "receita":
+                saldo_anterior += movimentacao["valor"]
+            elif movimentacao["tipo"] == "despesa":
+                saldo_anterior -= movimentacao["valor"]
+            continue
+
         if (
             movimentacao["data"].month != mes
             or movimentacao["data"].year != ano
@@ -155,7 +169,7 @@ def obter_resumo_periodo(movimentacoes, mes, ano):
             despesas += movimentacao["valor"]
             quantidade_despesas += 1
 
-    saldo = receitas - despesas
+    saldo = saldo_anterior + receitas - despesas
 
     if saldo > 0:
         classe_saldo = "positivo"
@@ -167,6 +181,7 @@ def obter_resumo_periodo(movimentacoes, mes, ano):
     return {
         "receitas": receitas,
         "despesas": despesas,
+        "saldo_anterior": saldo_anterior,
         "saldo": saldo,
         "quantidade_receitas": quantidade_receitas,
         "quantidade_despesas": quantidade_despesas,
@@ -247,7 +262,21 @@ def obter_evolucao_mensal(movimentacoes, mes, ano):
         for periodo in periodos
     }
 
+    saldo_anterior = Decimal("0.00")
+    primeiro_periodo = date(periodos[0]["ano"], periodos[0]["mes"], 1)
+
     for movimentacao in movimentacoes:
+        data_movimentacao = movimentacao["data"]
+        if isinstance(data_movimentacao, datetime):
+            data_movimentacao = data_movimentacao.date()
+
+        if data_movimentacao < primeiro_periodo:
+            if movimentacao["tipo"] == "receita":
+                saldo_anterior += movimentacao["valor"]
+            elif movimentacao["tipo"] == "despesa":
+                saldo_anterior -= movimentacao["valor"]
+            continue
+
         chave = (
             movimentacao["data"].month,
             movimentacao["data"].year
@@ -265,11 +294,13 @@ def obter_evolucao_mensal(movimentacoes, mes, ano):
     despesas = []
     saldos = []
 
+    saldo_acumulado = saldo_anterior
     for periodo in periodos:
         total = totais[(periodo["mes"], periodo["ano"])]
         receitas.append(total["receitas"])
         despesas.append(total["despesas"])
-        saldos.append(total["receitas"] - total["despesas"])
+        saldo_acumulado += total["receitas"] - total["despesas"]
+        saldos.append(saldo_acumulado)
 
     return {
         "rotulos": [periodo["rotulo"] for periodo in periodos],
@@ -282,8 +313,6 @@ def obter_evolucao_mensal(movimentacoes, mes, ano):
 def preparar_relatorio(mes, ano, usuario_id):
 
     periodos = gerar_seis_periodos(mes, ano)
-    primeiro = periodos[0]
-    data_inicio = date(primeiro["ano"], primeiro["mes"], 1)
     data_fim = (
         date(ano + 1, 1, 1)
         if mes == 12
@@ -291,7 +320,7 @@ def preparar_relatorio(mes, ano, usuario_id):
     )
     movimentacoes = buscar_movimentacoes_reconhecidas(
         usuario_id,
-        data_inicio,
+        None,
         data_fim
     )
     resumo = obter_resumo_periodo(movimentacoes, mes, ano)

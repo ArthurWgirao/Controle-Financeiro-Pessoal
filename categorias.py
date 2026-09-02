@@ -6,5 +6,6 @@ categorias = [
     "Educação",
     "Salário",
     "Investimentos",
+    "Essencial",
     "Outro"
 ]
